@@ -90,26 +90,14 @@ export class GameService {
     const user = this.requireUser();
     const client = this.auth.supabase;
     if (client) {
-      const inviteCode = this.inviteCode();
-      const { data, error } = await client
-        .from('games')
-        .insert({
-          owner_id: user.id,
-          invite_code: inviteCode,
-          title: draft.title,
-          play_mode: draft.playMode,
-          timer_seconds: draft.timerSeconds,
-          invite_expires_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
-        })
-        .select('id')
-        .single();
-      if (error) throw error;
-      const { error: worldError } = await client.from('world_states').insert({
-        game_id: data.id,
-        definition: draft.world,
+      const { data, error } = await client.rpc('create_game', {
+        game_title: draft.title,
+        selected_play_mode: draft.playMode,
+        selected_timer_seconds: draft.timerSeconds,
+        world_definition: draft.world,
       });
-      if (worldError) throw worldError;
-      return String(data.id);
+      if (error) throw error;
+      return String(data);
     }
     const now = new Date().toISOString();
     const game: LocalAdventure = {

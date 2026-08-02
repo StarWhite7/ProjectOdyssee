@@ -70,8 +70,8 @@ import { GameService } from '../core/game.service';
             <label class="field"
               >Code d’invitation<input
                 [(ngModel)]="code"
-                maxlength="10"
-                placeholder="NACRE-27" /></label
+                maxlength="11"
+                placeholder="A1B2C-D3E4F" /></label
             ><button class="secondary" (click)="join()">Rejoindre</button>
           </div>
           <h3 class="list-title">Vos aventures</h3>
@@ -238,6 +238,14 @@ export class DashboardPage implements OnInit {
   }
   private fail(e: unknown) {
     this.error.set(true);
-    this.message.set(e instanceof Error ? e.message : 'Une erreur est survenue.');
+    const raw = e instanceof Error ? e.message : 'Une erreur est survenue.';
+    this.message.set(
+      raw.includes('too_many_active_games')
+        ? 'Vous avez atteint la limite de parties actives.'
+        : raw.includes('authentication') || raw.includes('JWT')
+          ? 'Votre session a expiré. Déconnectez-vous puis reconnectez-vous.'
+          : raw,
+    );
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }

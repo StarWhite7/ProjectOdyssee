@@ -18,7 +18,13 @@ async function createCharacter(page: Page, name: string) {
   await expect(page).toHaveURL(/salon/);
 }
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, context }) => {
+  await context.route('**/config.js', async (route) =>
+    route.fulfill({
+      contentType: 'application/javascript',
+      body: "window.__ODYSSEE_CONFIG__={supabaseUrl:'',supabaseAnonKey:'',aiProvider:'mock'};",
+    }),
+  );
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
 });
