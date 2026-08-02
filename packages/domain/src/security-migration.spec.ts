@@ -29,6 +29,10 @@ const mockResolution = readFileSync(
   ),
   'utf8',
 );
+const variedNarrative = readFileSync(
+  resolve(process.cwd(), '../../supabase/migrations/202608030002_varied_mock_narrative.sql'),
+  'utf8',
+);
 describe('Supabase security migration', () => {
   it('enables RLS and protects private goals and decisions', () => {
     expect(initial.match(/enable row level security/g)?.length).toBeGreaterThanOrEqual(12);
@@ -64,5 +68,11 @@ describe('Supabase security migration', () => {
     expect(mockResolution).toContain('create function public.resolve_ready_turn_mock');
     expect(mockResolution).toContain('count(*) from public.player_decisions');
     expect(mockResolution).toContain("resolution_status='resolved'");
+  });
+  it('varies Mock scenes and intentions across turns', () => {
+    expect(variedNarrative).toContain('variant:=((next_number-1)%6)+1');
+    expect(variedNarrative).toContain('Décoder la transmission');
+    expect(variedNarrative).toContain('Refuge du témoin');
+    expect(variedNarrative).toContain('Upgrade open scenes');
   });
 });
