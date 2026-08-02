@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { buildMockResolutionNarration } from './mock-resolution.ts';
 
 const allowedOrigin = Deno.env.get('APP_URL') ?? 'http://localhost:4200';
 const cors = {
@@ -114,7 +115,7 @@ function mockResolution(context: Awaited<ReturnType<typeof loadContext>>) {
   );
   const next = Number(context.currentTurn.turn_number) + 1;
   return {
-    resolutionNarration: `Les deux initiatives se rencontrent : tandis que l’un tente de ${actions[0]?.toLocaleLowerCase()}, l’autre choisit de ${actions[1]?.toLocaleLowerCase()}. Leur combinaison révèle une piste nouvelle sans refermer leurs possibilités.`,
+    resolutionNarration: buildMockResolutionNarration(actions),
     nextScene: {
       text: 'La conséquence de leurs choix transforme la situation. Un détail jusque-là invisible apparaît, et chacun reste libre de décider de la suite.',
       location: context.currentTurn.location,
