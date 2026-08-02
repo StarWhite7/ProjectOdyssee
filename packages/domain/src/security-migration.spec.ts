@@ -18,6 +18,10 @@ const postgrest = readFileSync(
   resolve(process.cwd(), '../../supabase/migrations/202608020004_postgrest_permissions.sql'),
   'utf8',
 );
+const startGame = readFileSync(
+  resolve(process.cwd(), '../../supabase/migrations/202608020006_start_game_when_ready.sql'),
+  'utf8',
+);
 describe('Supabase security migration', () => {
   it('enables RLS and protects private goals and decisions', () => {
     expect(initial.match(/enable row level security/g)?.length).toBeGreaterThanOrEqual(12);
@@ -43,5 +47,10 @@ describe('Supabase security migration', () => {
     expect(postgrest).toContain('grant select on table');
     expect(postgrest).toContain('grant execute on function public.create_game');
     expect(postgrest).toContain("notify pgrst, 'reload schema'");
+  });
+  it('starts a ready game idempotently without an Edge Function', () => {
+    expect(startGame).toContain('create function public.start_game_if_ready');
+    expect(startGame).toContain("if target_game.status='active'");
+    expect(startGame).toContain('on conflict(game_id,turn_number) do nothing');
   });
 });

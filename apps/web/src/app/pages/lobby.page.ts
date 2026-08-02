@@ -1,4 +1,4 @@
-import type { OnInit } from '@angular/core';
+import type { OnDestroy, OnInit } from '@angular/core';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
@@ -138,7 +138,7 @@ import type { LocalAdventure } from '../core/game.service';
     `,
   ],
 })
-export class LobbyPage implements OnInit {
+export class LobbyPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly games = inject(GameService);
   private readonly auth = inject(AuthService);
@@ -146,9 +146,21 @@ export class LobbyPage implements OnInit {
   readonly loading = signal(true);
   readonly error = signal('');
   readonly copied = signal(false);
+  private refreshTimer: number | undefined;
   async ngOnInit() {
+    await this.refresh();
+    this.refreshTimer = window.setInterval(() => void this.refresh(false), 3_000);
+  }
+  ngOnDestroy(): void {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+  }
+  private async refresh(showLoading = true): Promise<void> {
+    if (showLoading) this.loading.set(true);
     try {
-      this.game.set(await this.games.load(this.route.snapshot.paramMap.get('id')!));
+      const gameId = this.route.snapshot.paramMap.get('id')!;
+      await this.games.startIfReady(gameId);
+      this.game.set(await this.games.load(gameId));
+      this.error.set('');
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : 'Chargement impossible.');
     } finally {

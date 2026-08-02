@@ -274,17 +274,7 @@ export class GameService {
         { onConflict: 'game_id,owner_id' },
       );
       if (error) throw error;
-      const { count } = await client
-        .from('characters')
-        .select('*', { count: 'exact', head: true })
-        .eq('game_id', gameId)
-        .eq('is_final', true);
-      if (count === 2) {
-        const { error: startError } = await client.functions.invoke('start-game', {
-          body: { gameId },
-        });
-        if (startError) throw startError;
-      }
+      await this.startIfReady(gameId);
       return;
     }
     const game = await this.load(gameId);
@@ -356,6 +346,20 @@ export class GameService {
     );
     this.patchLocal(gameId, { turns: updatedTurns });
     if (decisions.length >= 2) this.resolveLocal(gameId, turn.id);
+  }
+
+  async startIfReady(
+    gameId: string,
+  ): Promise<'started' | 'already_started' | 'waiting_for_characters'> {
+    const client = this.auth.supabase;
+    if (!client) {
+      this.ensureOpening(gameId);
+      const game = await this.load(gameId);
+      return game.status === 'active' ? 'started' : 'waiting_for_characters';
+    }
+    const { data, error } = await client.rpc('start_game_if_ready', { target_game_id: gameId });
+    if (error) throw error;
+    return String(data) as 'started' | 'already_started' | 'waiting_for_characters';
   }
 
   createDemo(): string {
