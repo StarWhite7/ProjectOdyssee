@@ -37,6 +37,7 @@ describe('Supabase security migration', () => {
     expect(creation).toContain('from auth.users');
     expect(creation).toContain('create function public.create_game');
     expect(creation).toContain('insert into public.world_states');
+    expect(creation).toContain('extensions.gen_random_bytes');
   });
   it('grants the REST API least-privilege access and reloads its schema', () => {
     expect(postgrest).toContain('grant select on table');

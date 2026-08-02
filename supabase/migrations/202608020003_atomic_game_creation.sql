@@ -18,7 +18,7 @@ begin
   select * into account from auth.users where id=auth.uid();
   insert into public.profiles(id,display_name) values(account.id,coalesce(nullif(account.raw_user_meta_data->>'display_name',''),split_part(account.email,'@',1),'Voyageur')) on conflict(id) do nothing;
   loop
-    generated_code:=upper(substr(encode(gen_random_bytes(6),'hex'),1,5)||'-'||substr(encode(gen_random_bytes(6),'hex'),1,5));
+    generated_code:=upper(substr(encode(extensions.gen_random_bytes(6),'hex'),1,5)||'-'||substr(encode(extensions.gen_random_bytes(6),'hex'),1,5));
     exit when not exists(select 1 from public.games where invite_code=generated_code);
   end loop;
   insert into public.games(invite_code,owner_id,title,play_mode,timer_seconds,invite_expires_at) values(generated_code,auth.uid(),trim(game_title),selected_play_mode,selected_timer_seconds,now()+interval '7 days') returning id into created_game_id;
