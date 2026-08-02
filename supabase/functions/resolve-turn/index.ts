@@ -1,5 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { geminiErrorFromResponse } from './gemini-error.ts';
 import { buildMockResolutionNarration } from './mock-resolution.ts';
+import { handleResolutionFailure } from './resolution-error.ts';
 
 const allowedOrigin = Deno.env.get('APP_URL') ?? 'http://localhost:4200';
 const cors = {
@@ -47,18 +49,7 @@ Deno.serve(async (request) => {
     if (completionError) throw completionError;
     return json({ status: 'resolved', nextTurnId });
   } catch (error) {
-    if (turnId)
-      await admin.rpc('fail_turn_resolution', {
-        target_turn_id: turnId,
-        safe_error: error instanceof Error ? error.message : 'unknown',
-      });
-    return json(
-      {
-        error: 'resolution_failed',
-        message: 'La résolution a échoué sans perdre les décisions. Vous pouvez réessayer.',
-      },
-      500,
-    );
+    return handleResolutionFailure(admin, turnId, error, cors);
   }
 });
 
@@ -171,7 +162,7 @@ async function callGemini(context: Awaited<ReturnType<typeof loadContext>>) {
       signal: AbortSignal.timeout(30_000),
     },
   );
-  if (!response.ok) throw new Error(`gemini_${response.status}`);
+  if (!response.ok) throw await geminiErrorFromResponse(response);
   const payload = await response.json();
   const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('empty_ai_response');
