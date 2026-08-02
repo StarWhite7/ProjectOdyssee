@@ -1,87 +1,100 @@
 # Projet Odyssée
 
-Odyssée est un MVP narratif coopératif pour deux joueurs. Les joueurs choisissent librement leurs actions ; un moteur IA arbitre et fusionne leurs décisions sans imposer de scénario ni de fin.
+Application narrative coopérative pour deux joueurs. Les joueurs écrivent librement l’histoire ; l’IA arbitre et préserve sa cohérence sans imposer de scénario ni de fin.
 
-![Emplacement prévu pour une capture de l’écran de jeu](docs/assets/game-screen-placeholder.svg)
+![Aperçu de l’écran de jeu](docs/assets/game-screen-placeholder.svg)
 
-## État actuel
+## Fonctionnalités
 
-Le dépôt contient une interface Angular jouable en démonstration locale, les types et validations du domaine, un fournisseur IA Mock déterministe, l’abstraction Gemini, l’orchestrateur narratif, le schéma Supabase avec RLS et une Edge Function de résolution. La connexion réelle du frontend à Supabase et certains écrans secondaires restent à achever ; voir « Limites connues ».
+- inscription, connexion, session et routes protégées ;
+- création/rejointure par code et salon à deux places ;
+- univers, ton, limites et modes libre/temps réel ;
+- formulaire et aperçu de personnage ;
+- objectifs personnels privés ;
+- deux intentions par joueur et action libre ;
+- décisions verrouillées et secrètes jusqu’à la résolution ;
+- résolution unique, scène suivante, souvenirs et journal ;
+- reprise après rechargement et synchronisation Realtime ;
+- timeout UI et expiration serveur ;
+- fournisseur Mock autonome et fournisseur Gemini serveur ;
+- interface responsive desktop/mobile.
 
-## Prérequis
+## Démarrage immédiat sans service externe
 
-- Node.js 24.15+ et npm 11+
-- Docker Desktop et Supabase CLI pour la pile locale réelle
-- Facultatif : un projet Supabase hébergé et une clé Gemini
+Prérequis : Node 24.15+ et npm 11+.
 
-## Installation et mode Mock
-
-```bash
+```powershell
 npm install
 npm start
 ```
 
-Ouvrir `http://localhost:4200`, choisir « Créer une aventure », puis lancer la démo. Le mode Mock ne requiert ni compte Supabase ni clé Gemini. L’état du tour est conservé dans `localStorage`.
+Ouvrir `http://localhost:4200`, créer une session Mock, puis choisir une aventure. Deux onglets peuvent utiliser deux comptes différents : la session Mock est isolée par onglet tandis que les parties sont partagées dans le stockage de l’origine.
 
-## Configuration
+## Vérification
 
-Copier `.env.example` vers `.env` et renseigner les valeurs nécessaires. Les seules valeurs destinées au navigateur sont `APP_URL`, `SUPABASE_URL` et `SUPABASE_ANON_KEY`. `SUPABASE_SERVICE_ROLE_KEY` et `GEMINI_API_KEY` sont exclusivement des secrets d’Edge Function.
+```powershell
+npm run check
+npm run test:e2e
+```
 
-### Supabase local
+`check` exécute ESLint, Prettier, Vitest, les tests Angular et les builds stricts. Playwright couvre desktop et mobile.
 
-```bash
+## Configuration Supabase
+
+1. Installer Docker Desktop et la CLI Supabase, ou créer un projet hébergé.
+2. Copier `.env.example` vers `.env`.
+3. Lancer localement :
+
+```powershell
 npx supabase start
 npx supabase db reset
+npx supabase functions serve start-game --env-file .env
 npx supabase functions serve resolve-turn --env-file .env
 ```
 
-La migration crée les tables, index, contraintes, RPC et RLS. Pour la seed SQL réaliste, créer deux utilisateurs Auth, remplacer les UUID dans `docs/demo-seed.sql`, puis l’exécuter via `psql` ou l’éditeur SQL. La seed navigateur fonctionne indépendamment.
+4. Renseigner les deux valeurs publiques dans `apps/web/public/config.js` :
 
-### Gemini
-
-1. Définir `AI_PROVIDER=gemini`, `GEMINI_API_KEY` et `GEMINI_MODEL` dans les secrets Supabase.
-2. Implémenter le transport HTTP Gemini dans l’Edge Function à partir de `GeminiNarrativeAiProvider`.
-3. Déployer uniquement après tests : `npx supabase functions deploy resolve-turn`.
-
-L’adaptateur valide déjà les résolutions avec Zod. Dans l’état actuel, les opérations Gemini autres que la résolution signalent explicitement qu’un transport serveur doit être configuré.
-
-## Commandes
-
-```bash
-npm run build
-npm run test
-npm run lint
-npm run format:check
-npm run test:e2e
-npm run check
+```js
+window.__ODYSSEE_CONFIG__ = {
+  supabaseUrl: 'https://PROJECT.supabase.co',
+  supabaseAnonKey: 'CLE_ANONYME',
+  aiProvider: 'mock',
+};
 ```
 
-## Architecture
+5. Garder `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY` et `CRON_SECRET` uniquement dans les secrets des Edge Functions.
 
-- `apps/web` — interface Angular standalone responsive.
-- `packages/domain` — modèle strict, schémas Zod, sélection de mémoire.
-- `packages/ai` — fournisseurs, prompts et moteur narratif.
-- `supabase` — migration, seed et fonction serveur.
-- `tests/e2e` — parcours Playwright.
-- `docs` — décisions et guides détaillés.
+Les migrations créent les tables, RLS, contraintes, résolution transactionnelle et expiration des timers. `supabase/tests/rls_acceptance.sql` est destiné à `supabase test db` dans une pile locale.
 
-Consulter [l’architecture](docs/architecture.md), [le moteur narratif](docs/narrative-engine.md) et [la sécurité](docs/security.md).
+## Gemini
 
-## Build et déploiement
+Le transport HTTP Gemini est implémenté dans `resolve-turn`. Pour l’activer côté serveur :
 
-`npm run build` produit le frontend dans `apps/web/dist/web/browser`. Cloudflare Pages peut utiliser `npm run build -w web` et ce répertoire. Les migrations et fonctions sont déployées séparément vers Supabase. Aucun déploiement n’est effectué automatiquement ; voir [le guide](docs/deployment.md).
+```powershell
+npx supabase secrets set AI_PROVIDER=gemini GEMINI_API_KEY=... GEMINI_MODEL=gemini-2.5-flash
+```
 
-## Dépannage
+Ne jamais placer la clé Gemini dans `config.js` ou une variable Angular.
 
-- `spawn EPERM` sous Windows : autoriser `node_modules/esbuild/bin/esbuild.exe` dans l’antivirus/sandbox puis relancer le build.
-- Variables Supabase vides : utiliser `/aventure/demo` ou configurer le projet local.
-- État de démo incohérent : supprimer les clés `odyssee_demo_*` du stockage local.
-- Échec IA : le tour conserve ses décisions et passe à l’état `failed`; relancer la résolution.
+## Structure
 
-## Limites connues
+- `apps/web` : Angular standalone, Signals, Router, Reactive Forms et SCSS.
+- `packages/domain` : types, schémas Zod et sélection de souvenirs.
+- `packages/ai` : abstraction fournisseur, Mock, Gemini, prompts et orchestrateur.
+- `supabase/migrations` : schéma, RLS et fonctions transactionnelles.
+- `supabase/functions` : ouverture, résolution IA et expiration serveur.
+- `tests/e2e` : parcours Playwright multi-session.
+- `docs` : architecture, sécurité et déploiement.
 
-- La démonstration navigateur simule le second joueur ; le flux multi-session réel nécessite le raccordement du client Supabase.
-- Auth réelle, création complète de personnage, journal/souvenirs et paramètres ne sont pas encore exposés par tous leurs écrans.
-- La migration n’a pas été exécutée ici faute de Docker/CLI Supabase.
-- Le transport Gemini complet n’est pas activé faute de clé et d’autorisation de déploiement.
-- Le timer serveur doit être planifié via Supabase Cron en production.
+## Production
+
+Le frontend se construit dans `apps/web/dist/web/browser`. Cloudflare Pages peut utiliser `npm run build -w web`. Supabase héberge Auth, PostgreSQL, Realtime et les fonctions. Voir [deployment.md](docs/deployment.md).
+
+## Limites vérifiées
+
+- Les migrations et fonctions n’ont pas été exécutées ici contre une instance Supabase réelle : Docker et les identifiants ne sont pas disponibles sur cette machine.
+- Gemini n’a pas reçu d’appel réel faute de clé API.
+- Aucun déploiement distant n’a été effectué.
+- En mode Mock, la sécurité est une simulation fonctionnelle ; les garanties d’isolation fortes viennent de RLS en mode Supabase.
+
+La procédure utilisateur restante et un prompt d’accompagnement sont dans [user-actions-prompt.md](docs/user-actions-prompt.md).

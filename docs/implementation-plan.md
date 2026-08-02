@@ -1,41 +1,40 @@
 # Plan d’implémentation — Projet Odyssée
 
-## Hypothèses de départ
+## Hypothèses
 
-- Le dépôt est neuf et peut être structuré en monorepo npm.
-- Angular 22 est retenu : il est stable et compatible avec Node 24.16 installé.
-- Supabase local sera lancé via sa CLI/Docker par le développeur ; aucun identifiant externe n’est disponible pendant l’implémentation.
-- Le mode `mock` est la configuration locale par défaut et doit permettre une démonstration sans Gemini.
-- Les appels IA et les opérations privilégiées restent dans des Edge Functions Supabase.
-- Le MVP cible exactement deux joueurs et ne prépare que des points d’extension pour les fonctions hors portée.
+- Angular 22 et Node 24 constituent la base stable retenue.
+- Le mode Mock est autonome, persistant et testable sans infrastructure externe.
+- Supabase porte Auth, PostgreSQL, RLS, Realtime, les transactions logiques et les appels IA.
+- Les fonctionnalités payantes, sociales et natives restent hors du MVP.
 
-## Phases et critères de contrôle
+## Phases
 
-- [x] Phase 1 — Inspecter le dépôt, inventorier les outils, documenter le plan et les conventions.
-- [x] Phase 2 — Initialiser le monorepo, Angular strict, qualité, packages domaine/IA/config, fournisseur Mock, premier écran, compilation.
-- [ ] Phase 3 — Écrire migrations, contraintes, fonctions SQL, RLS, seed et tests des règles critiques. Schéma écrit ; exécution locale en attente de la CLI/Docker.
-- [ ] Phase 4 — Authentification, tableau de bord, création/rejointure de partie et salon.
-- [ ] Phase 5 — Personnages, univers, validation, objectifs privés et aperçu.
-- [ ] Phase 6 — Scènes, décisions secrètes, résolution idempotente, Realtime, timer serveur et mode libre.
-- [ ] Phase 7 — Souvenirs, résumé de campagne, sélection contextuelle, faits immuables et journal.
-- [ ] Phase 8 — Responsive, accessibilité, erreurs, chargements, reconnexion et démonstration.
-- [ ] Phase 9 — Tests unitaires/intégration/E2E, audits secrets/RLS, build production et documentation finale.
-
-## Stratégie technique
-
-1. Garder les types, schémas Zod et règles pures dans `packages/domain`.
-2. Garder l’abstraction IA, les prompts et les fournisseurs dans `packages/ai`.
-3. Exposer au navigateur uniquement la configuration publique dans `packages/config`.
-4. Utiliser Supabase Auth/PostgreSQL/Realtime côté web, et les Edge Functions pour l’orchestration sensible.
-5. Garantir l’unicité des décisions et des résolutions au niveau PostgreSQL, pas seulement dans l’interface.
-6. Tester le moteur avec un dépôt en mémoire et le fournisseur Mock déterministe.
+- [x] Inspection, architecture et conventions.
+- [x] Monorepo, Angular strict, qualité, domaine, IA Mock et premier écran.
+- [x] Migrations, contraintes, RLS, fonctions atomiques, seed et tests statiques de sécurité.
+- [x] Authentification, tableau de bord, création/rejointure et salon.
+- [x] Univers, formulaire personnage, aperçu et objectifs privés.
+- [x] Scènes, choix libre, décisions secrètes, résolution idempotente, Realtime et mode libre.
+- [x] Timer UI, expiration serveur et décision de timeout.
+- [x] Souvenirs structurés, sélection contextuelle, journal et faits immuables.
+- [x] Responsive desktop/mobile, erreurs, chargements, reprise et démonstration.
+- [x] Tests unitaires, concurrence, IA invalide, E2E multi-joueur, lint, format et build.
+- [ ] Validation d’une pile Supabase réelle : bloquée localement par l’absence de Docker et d’identifiants Supabase.
+- [ ] Appel Gemini réel : bloqué par l’absence de clé API.
+- [ ] Déploiement : volontairement non exécuté sans autorisation et comptes utilisateur.
 
 ## Journal de validation
 
-Les commandes réellement exécutées et leurs résultats seront consignés ici à la fin de chaque phase. Les intégrations externes non vérifiables faute d’identifiants seront explicitement marquées comme telles.
+- Environnement : Node `24.16.0`, npm `11.13.0`, Angular `22.1.x`.
+- `npm run check` : lint, format, tests et builds exécutés.
+- Vitest : domaine, règles SQL statiques, Mock, concurrence et réponse IA invalide.
+- Angular : tests composant.
+- Playwright Chromium : démonstration, deux sessions secrètes, résolution unique, persistance et timeout.
+- Playwright mobile : démonstration et parcours à deux joueurs.
+- Supabase CLI/Docker indisponibles : SQL et Edge Functions non exécutés contre PostgreSQL local.
 
-- 2026-08-02 : Node `24.16.0`, npm `11.13.0`, Angular `22.1.x`.
-- Phase 2 : packages domaine et IA compilés avec `tsc`; build Angular production réussi (230,57 kB initial brut).
-- Tests : domaine 1/1, IA 1/1, Angular 2/2 et parcours Playwright Chromium 1/1 réussis.
-- Qualité : ESLint et contrôle Prettier réussis.
-- Supabase CLI absente : migration et RLS écrites mais non appliquées.
+## Définition de fini locale
+
+Le MVP Mock est fini lorsqu’une installation neuve peut créer deux sessions, rejoindre par code, créer deux personnages, jouer deux tours, conserver le secret, enregistrer un souvenir et reprendre après rechargement. Ce chemin est couvert par Playwright.
+
+Le passage en production nécessite les étapes externes listées dans `docs/user-actions-prompt.md`.

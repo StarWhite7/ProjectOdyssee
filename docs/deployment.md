@@ -1,13 +1,44 @@
 # Déploiement
 
-## Frontend Cloudflare Pages
+## 1. Supabase
 
-Créer un projet relié au dépôt, commande `npm run build -w web`, sortie `apps/web/dist/web/browser`, Node `24.15`. Renseigner uniquement l’URL et la clé anonyme Supabase. Ajouter une règle SPA redirigeant les routes vers `index.html`.
+```powershell
+npx supabase login
+npx supabase link --project-ref VOTRE_REFERENCE
+npx supabase db push
+npx supabase secrets set APP_URL=https://votre-domaine.example AI_PROVIDER=mock CRON_SECRET=UNE_VALEUR_ALEATOIRE
+npx supabase functions deploy start-game
+npx supabase functions deploy resolve-turn
+npx supabase functions deploy expire-turns
+```
 
-## Supabase
+Dans Authentication > URL Configuration, ajouter l’URL Cloudflare aux Site URL et Redirect URLs. Exécuter les tests RLS sur un projet de préproduction avec trois utilisateurs.
 
-Créer un projet, lier la CLI, exécuter `supabase db push`, définir les secrets serveur, puis déployer `resolve-turn`. Ajouter les URL Cloudflare aux redirect URLs Auth et remplacer le CORS `*` de la fonction par l’origine exacte.
+Planifier toutes les minutes un appel POST à `functions/v1/expire-turns` avec l’en-tête `x-cron-secret`. La fonction crée les décisions timeout côté serveur et déclenche les résolutions prêtes.
 
-Configurer un Cron serveur qui crée les décisions `timeout` arrivées à échéance puis invoque la résolution. Tester sur un projet de préproduction avant production.
+## 2. Frontend Cloudflare Pages
 
-Aucune ressource n’est déployée automatiquement depuis ce dépôt.
+- commande : `npm run build -w web` ;
+- sortie : `apps/web/dist/web/browser` ;
+- Node : `24.15` ou ultérieur compatible Angular 22.
+
+Avant le build, renseigner `apps/web/public/config.js` avec l’URL et la clé anonyme Supabase. Ces deux valeurs sont publiques par conception. Ne jamais y mettre service role ou Gemini.
+
+Ajouter une règle SPA pour servir `index.html` sur les routes Angular.
+
+## 3. Gemini facultatif
+
+Définir `AI_PROVIDER=gemini`, `GEMINI_API_KEY` et `GEMINI_MODEL` dans les secrets Supabase, redéployer `resolve-turn`, puis tester sur une partie de préproduction avec limites thématiques.
+
+## 4. Contrôles avant ouverture
+
+- `npm run check` et `npm run test:e2e` réussis ;
+- migrations appliquées sans erreur ;
+- tests RLS avec deux membres et un intrus ;
+- CORS limité au domaine final ;
+- email Auth et redirections vérifiés ;
+- timeout Cron vérifié ;
+- quotas et budget Gemini configurés ;
+- sauvegardes Supabase activées selon l’offre choisie.
+
+Aucun déploiement n’est automatique depuis ce dépôt.
