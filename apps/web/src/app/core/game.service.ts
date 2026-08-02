@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { characterInputSchema, worldDefinitionSchema } from '@odyssee/domain';
 import type { Character, WorldDefinition } from '@odyssee/domain';
 import { AuthService } from './auth.service';
+import { runtimeConfig } from './runtime-config';
 
 export type GameSummary = {
   id: string;
@@ -321,11 +322,7 @@ export class GameService {
         action_text: actionText,
       });
       if (error) throw error;
-      const { count } = await client
-        .from('player_decisions')
-        .select('*', { count: 'exact', head: true })
-        .eq('turn_id', turn.id);
-      if (count === 2) await client.functions.invoke('resolve-turn', { body: { turnId: turn.id } });
+      await this.resolveTurn(turn.id);
       return;
     }
     const decisions = [
@@ -360,6 +357,30 @@ export class GameService {
     const { data, error } = await client.rpc('start_game_if_ready', { target_game_id: gameId });
     if (error) throw error;
     return String(data) as 'started' | 'already_started' | 'waiting_for_characters';
+  }
+
+  async resolveCurrentTurn(gameId: string): Promise<string> {
+    const game = await this.load(gameId);
+    const turn = game.turns.at(-1);
+    if (!turn) throw new Error('Aucun tour actif.');
+    return this.resolveTurn(turn.id);
+  }
+
+  private async resolveTurn(turnId: string): Promise<string> {
+    const client = this.auth.supabase;
+    if (!client) return 'mock_local';
+    if (runtimeConfig.aiProvider === 'gemini') {
+      const { data, error } = await client.functions.invoke('resolve-turn', {
+        body: { turnId },
+      });
+      if (error) throw error;
+      return String((data as { status?: string } | null)?.status ?? 'requested');
+    }
+    const { data, error } = await client.rpc('resolve_ready_turn_mock', {
+      target_turn_id: turnId,
+    });
+    if (error) throw error;
+    return String(data);
   }
 
   createDemo(): string {

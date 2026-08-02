@@ -310,6 +310,7 @@ export class GamePage implements OnInit, OnDestroy {
   freeAction = '';
   private pollId: number | undefined;
   private timeoutSubmitting = false;
+  private resolutionRetrying = false;
   private realtimeChannel: RealtimeChannel | null = null;
   readonly turn = computed(() => this.game()?.turns.at(-1));
   readonly me = computed<Character | undefined>(
@@ -390,6 +391,17 @@ export class GamePage implements OnInit, OnDestroy {
     try {
       this.game.set(await this.games.load(this.gameId));
       this.error.set('');
+      if (this.alreadySubmitted() && !this.resolutionRetrying) {
+        this.resolutionRetrying = true;
+        try {
+          const status = await this.games.resolveCurrentTurn(this.gameId);
+          if (status === 'resolved' || status === 'already_resolved') {
+            this.game.set(await this.games.load(this.gameId));
+          }
+        } finally {
+          this.resolutionRetrying = false;
+        }
+      }
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : 'Chargement impossible.');
     } finally {

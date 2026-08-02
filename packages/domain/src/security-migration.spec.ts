@@ -22,6 +22,13 @@ const startGame = readFileSync(
   resolve(process.cwd(), '../../supabase/migrations/202608020006_start_game_when_ready.sql'),
   'utf8',
 );
+const mockResolution = readFileSync(
+  resolve(
+    process.cwd(),
+    '../../supabase/migrations/202608030001_resolve_mock_turn_server_side.sql',
+  ),
+  'utf8',
+);
 describe('Supabase security migration', () => {
   it('enables RLS and protects private goals and decisions', () => {
     expect(initial.match(/enable row level security/g)?.length).toBeGreaterThanOrEqual(12);
@@ -52,5 +59,10 @@ describe('Supabase security migration', () => {
     expect(startGame).toContain('create function public.start_game_if_ready');
     expect(startGame).toContain("if target_game.status='active'");
     expect(startGame).toContain('on conflict(game_id,turn_number) do nothing');
+  });
+  it('counts secret decisions and resolves Mock turns only on the server', () => {
+    expect(mockResolution).toContain('create function public.resolve_ready_turn_mock');
+    expect(mockResolution).toContain('count(*) from public.player_decisions');
+    expect(mockResolution).toContain("resolution_status='resolved'");
   });
 });
