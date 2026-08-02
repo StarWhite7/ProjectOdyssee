@@ -1,0 +1,28 @@
+{
+  "name": "projet-odyssee",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "npm run start -w web",
+    "build": "npm run build -w @odyssee/domain && npm run build -w @odyssee/ai && npm run build -w web",
+    "test": "npm run test -w @odyssee/domain && npm run test -w @odyssee/ai && npm run test -w web -- --watch=false",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:e2e": "playwright test",
+    "check": "npm run lint && npm run format:check && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.58.2",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "js-tokens": "^10.0.0",
+    "prettier": "^3.8.1",
+    "typescript-eslint": "^8.54.0"
+  }
+}

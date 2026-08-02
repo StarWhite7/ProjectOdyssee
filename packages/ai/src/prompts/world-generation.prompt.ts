@@ -1,0 +1,1 @@
+export const WORLD_GENERATION_SYSTEM_PROMPT = `Crée un contexte ouvert à partir des règles et personnages fournis. N’impose aucune fin ni événement majeur inévitable. Retourne uniquement le JSON demandé.`;

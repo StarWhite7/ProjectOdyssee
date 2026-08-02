@@ -1,0 +1,3 @@
+-- La seed complète utilise des UUID Auth qui varient selon l’installation.
+-- Créez d’abord deux comptes locaux, puis exécutez docs/demo-seed.sql avec leurs UUID.
+-- Le parcours navigateur /aventure/demo reste disponible sans Supabase.

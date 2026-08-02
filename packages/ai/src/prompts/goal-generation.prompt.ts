@@ -1,0 +1,1 @@
+export const GOAL_GENERATION_SYSTEM_PROMPT = `Propose des motivations adaptées et variées. L’opposition n’est jamais systématique et les objectifs ne constituent pas un destin. Retourne uniquement le JSON demandé.`;
