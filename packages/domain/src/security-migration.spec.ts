@@ -14,6 +14,10 @@ const creation = readFileSync(
   resolve(process.cwd(), '../../supabase/migrations/202608020003_atomic_game_creation.sql'),
   'utf8',
 );
+const postgrest = readFileSync(
+  resolve(process.cwd(), '../../supabase/migrations/202608020004_postgrest_permissions.sql'),
+  'utf8',
+);
 describe('Supabase security migration', () => {
   it('enables RLS and protects private goals and decisions', () => {
     expect(initial.match(/enable row level security/g)?.length).toBeGreaterThanOrEqual(12);
@@ -33,5 +37,10 @@ describe('Supabase security migration', () => {
     expect(creation).toContain('from auth.users');
     expect(creation).toContain('create function public.create_game');
     expect(creation).toContain('insert into public.world_states');
+  });
+  it('grants the REST API least-privilege access and reloads its schema', () => {
+    expect(postgrest).toContain('grant select on table');
+    expect(postgrest).toContain('grant execute on function public.create_game');
+    expect(postgrest).toContain("notify pgrst, 'reload schema'");
   });
 });

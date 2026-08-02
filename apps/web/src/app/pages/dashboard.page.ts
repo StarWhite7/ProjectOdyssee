@@ -238,7 +238,7 @@ export class DashboardPage implements OnInit {
   }
   private fail(e: unknown) {
     this.error.set(true);
-    const raw = e instanceof Error ? e.message : 'Une erreur est survenue.';
+    const raw = this.errorMessage(e);
     this.message.set(
       raw.includes('too_many_active_games')
         ? 'Vous avez atteint la limite de parties actives.'
@@ -247,5 +247,18 @@ export class DashboardPage implements OnInit {
           : raw,
     );
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  private errorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    if (error && typeof error === 'object') {
+      const candidate = error as Record<string, unknown>;
+      const message = typeof candidate['message'] === 'string' ? candidate['message'] : '';
+      const details = typeof candidate['details'] === 'string' ? candidate['details'] : '';
+      const hint = typeof candidate['hint'] === 'string' ? candidate['hint'] : '';
+      const code = typeof candidate['code'] === 'string' ? `[${candidate['code']}] ` : '';
+      const combined = `${code}${message} ${details} ${hint}`.trim();
+      if (combined) return combined;
+    }
+    return 'Une erreur inconnue est survenue pendant la communication avec Supabase.';
   }
 }
