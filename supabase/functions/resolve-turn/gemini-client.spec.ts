@@ -16,7 +16,14 @@ describe('Gemini client', () => {
     const logs = logger();
 
     await expect(
-      callGemini({ safe: 'context' }, 'gemini/test model', 'secret/key', fetcher, logs),
+      callGemini(
+        { safe: 'context' },
+        ['character-1', 'character-2'],
+        'gemini/test model',
+        'secret/key',
+        fetcher,
+        logs,
+      ),
     ).resolves.toEqual({ resolutionNarration: 'ok' });
     expect(fetcher).toHaveBeenCalledOnce();
     const [url, request] = fetcher.mock.calls[0] as [string, RequestInit];
@@ -27,6 +34,8 @@ describe('Gemini client', () => {
     });
     expect(request.body).toContain('system_instruction');
     expect(request.body).toContain('responseMimeType');
+    expect(request.body).toContain('expectedCharacterIds');
+    expect(request.body).toContain('character-1');
     expect(logs.log.mock.calls.flat().join(' ')).toContain('gemini_request_succeeded');
   });
 
@@ -39,6 +48,7 @@ describe('Gemini client', () => {
       const responsePayload = text ? payload(text) : { candidates: [] };
       const request = callGemini(
         {},
+        ['character-1'],
         'gemini-2.5-flash',
         'key',
         vi.fn().mockResolvedValue(new Response(JSON.stringify(responsePayload), { status: 200 })),
@@ -55,6 +65,7 @@ describe('Gemini client', () => {
     const logs = logger();
     const request = callGemini(
       { decision: 'private action' },
+      ['character-1'],
       'gemini-2.5-flash',
       'gemini-secret-key',
       vi
@@ -75,6 +86,7 @@ describe('Gemini client', () => {
     await expect(
       callGemini(
         { decision: 'private-decision', serviceRole: 'service-role-secret' },
+        ['character-1'],
         'gemini-2.5-flash',
         'gemini-secret-key',
         vi.fn().mockResolvedValue(new Response('not-json', { status: 200 })),

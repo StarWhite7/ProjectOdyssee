@@ -1,5 +1,15 @@
 import { AiConfigurationError } from './ai-provider.ts';
 import { GeminiApiError, publicGeminiError } from './gemini-error.ts';
+import { GeminiResponseError } from './gemini-client.ts';
+import { ResolutionValidationError } from './resolution-result.ts';
+
+export type ResolutionStage =
+  | 'claim'
+  | 'load_context'
+  | 'read_ai_configuration'
+  | 'generate_resolution'
+  | 'validate_result'
+  | 'complete_resolution';
 
 type RpcClient = {
   rpc(
@@ -13,15 +23,23 @@ export async function handleResolutionFailure(
   turnId: string,
   error: unknown,
   headers: Record<string, string>,
+  stage: ResolutionStage = 'claim',
+  logger: Pick<Console, 'error'> = console,
 ): Promise<Response> {
+  const classification = classifyResolutionError(error);
+  logger.error(
+    JSON.stringify({
+      event: 'resolution_failed',
+      stage,
+      errorName: classification.errorName,
+      errorCode: classification.errorCode,
+      retryable: classification.retryable,
+    }),
+  );
   if (turnId) {
-    const safeError =
-      error instanceof GeminiApiError || error instanceof AiConfigurationError
-        ? error.code
-        : 'unexpected_resolution_error';
     await admin.rpc('fail_turn_resolution', {
       target_turn_id: turnId,
-      safe_error: safeError,
+      safe_error: classification.errorCode,
     });
   }
 
@@ -49,6 +67,46 @@ export async function handleResolutionFailure(
     500,
     headers,
   );
+}
+
+export function classifyResolutionError(error: unknown): {
+  errorName: string;
+  errorCode: string;
+  retryable: boolean;
+} {
+  if (error instanceof GeminiApiError)
+    return { errorName: error.name, errorCode: error.code, retryable: error.retryable };
+  if (error instanceof GeminiResponseError || error instanceof AiConfigurationError)
+    return { errorName: error.name, errorCode: error.code, retryable: false };
+  if (error instanceof ResolutionValidationError)
+    return { errorName: error.name, errorCode: error.code, retryable: false };
+  if (isRecord(error) && isSafeTechnicalCode(error['code']))
+    return { errorName: 'PostgrestError', errorCode: error['code'], retryable: false };
+  if (error instanceof Error && isKnownLegacyCode(error.message))
+    return { errorName: 'Error', errorCode: error.message, retryable: false };
+  return {
+    errorName: error instanceof Error ? 'Error' : 'UnknownError',
+    errorCode: 'unexpected_resolution_error',
+    retryable: false,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isSafeTechnicalCode(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Z0-9_]{2,64}$/i.test(value);
+}
+
+function isKnownLegacyCode(value: string): boolean {
+  return [
+    'empty_ai_response',
+    'invalid_ai_response',
+    'invalid_resolution',
+    'invalid_next_scene',
+    'invalid_intentions',
+  ].includes(value);
 }
 
 function response(value: unknown, status: number, headers: Record<string, string>): Response {

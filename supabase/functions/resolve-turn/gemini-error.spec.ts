@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AiConfigurationError } from './ai-provider';
+import { GeminiResponseError } from './gemini-client';
 import { geminiErrorFromResponse, publicGeminiError } from './gemini-error';
 import { handleResolutionFailure } from './resolution-error';
 
@@ -97,5 +98,56 @@ describe('Gemini API errors', () => {
       retryable: false,
       message: 'Le moteur narratif est mal configuré.',
     });
+  });
+
+  it('records a Gemini response error with its safe code', async () => {
+    const rpc = vi.fn().mockResolvedValue({});
+    const logger = { error: vi.fn() };
+    await handleResolutionFailure(
+      { rpc },
+      'turn-id',
+      new GeminiResponseError('invalid_ai_response'),
+      {},
+      'generate_resolution',
+      logger,
+    );
+
+    expect(rpc).toHaveBeenCalledWith('fail_turn_resolution', {
+      target_turn_id: 'turn-id',
+      safe_error: 'invalid_ai_response',
+    });
+    expect(logger.error).toHaveBeenCalledWith(
+      JSON.stringify({
+        event: 'resolution_failed',
+        stage: 'generate_resolution',
+        errorName: 'GeminiResponseError',
+        errorCode: 'invalid_ai_response',
+        retryable: false,
+      }),
+    );
+  });
+
+  it('logs complete_resolution with only a safe PostgREST code', async () => {
+    const rpc = vi.fn().mockResolvedValue({});
+    const logger = { error: vi.fn() };
+    await handleResolutionFailure(
+      { rpc },
+      'turn-id',
+      {
+        code: 'PGRST204',
+        message: 'private-decision gemini-secret service-role-secret narrative-response',
+      },
+      {},
+      'complete_resolution',
+      logger,
+    );
+
+    const output = JSON.stringify(logger.error.mock.calls);
+    expect(output).toContain('complete_resolution');
+    expect(output).toContain('PGRST204');
+    expect(output).not.toContain('private-decision');
+    expect(output).not.toContain('gemini-secret');
+    expect(output).not.toContain('service-role-secret');
+    expect(output).not.toContain('narrative-response');
   });
 });

@@ -4,6 +4,8 @@ import { readAiConfiguration, resolveWithProvider } from './ai-provider.ts';
 import { callGemini } from './gemini-client.ts';
 import { buildMockResolutionNarration } from './mock-resolution.ts';
 import { handleResolutionFailure } from './resolution-error.ts';
+import { validateAndNormalizeResult } from './resolution-result.ts';
+import type { ResolutionStage } from './resolution-error.ts';
 
 const cors = createCorsHeaders(Deno.env.get('APP_URL'));
 
@@ -22,6 +24,7 @@ Deno.serve(async (request) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
   let turnId = '';
+  let stage: ResolutionStage = 'claim';
   try {
     const body = (await request.json()) as { turnId?: string };
     turnId = body.turnId?.trim() ?? '';
@@ -31,16 +34,20 @@ Deno.serve(async (request) => {
     });
     if (claimError) throw claimError;
     if (!claimed) return json({ status: 'already_claimed_or_not_ready' }, 202);
+    stage = 'load_context';
     const context = await loadContext(admin, turnId);
+    stage = 'read_ai_configuration';
     const configuration = readAiConfiguration((name) => Deno.env.get(name));
-    const result = await resolveWithProvider(configuration, context, {
-      gemini: (geminiContext, model, apiKey) => callGemini(geminiContext, model, apiKey),
+    const characterIds = context.characters.map((character) => character.id);
+    stage = 'generate_resolution';
+    const generatedResult = await resolveWithProvider(configuration, context, {
+      gemini: (geminiContext, model, apiKey) =>
+        callGemini(geminiContext, characterIds, model, apiKey),
       mock: mockResolution,
     });
-    validateResult(
-      result,
-      context.characters.map((character) => character.id),
-    );
+    stage = 'validate_result';
+    const result = validateAndNormalizeResult(generatedResult, characterIds);
+    stage = 'complete_resolution';
     const { data: nextTurnId, error: completionError } = await admin.rpc(
       'complete_turn_resolution',
       { target_turn_id: turnId, result },
@@ -48,7 +55,7 @@ Deno.serve(async (request) => {
     if (completionError) throw completionError;
     return json({ status: 'resolved', nextTurnId });
   } catch (error) {
-    return handleResolutionFailure(admin, turnId, error, cors);
+    return handleResolutionFailure(admin, turnId, error, cors, stage);
   }
 });
 
@@ -141,28 +148,6 @@ function mockResolution(context: Awaited<ReturnType<typeof loadContext>>) {
     worldChanges: [],
     goalChanges: [],
   };
-}
-
-function validateResult(
-  value: unknown,
-  characterIds: string[],
-): asserts value is Record<string, unknown> {
-  if (!value || typeof value !== 'object') throw new Error('invalid_ai_response');
-  const result = value as Record<string, unknown>;
-  if (
-    typeof result['resolutionNarration'] !== 'string' ||
-    result['resolutionNarration'].length > 12_000
-  )
-    throw new Error('invalid_resolution');
-  const next = result['nextScene'] as Record<string, unknown> | undefined;
-  if (!next || typeof next['text'] !== 'string' || next['text'].length > 12_000)
-    throw new Error('invalid_next_scene');
-  const intentions = result['proposedIntentions'] as Record<string, unknown[]> | undefined;
-  if (
-    !intentions ||
-    characterIds.some((id) => !Array.isArray(intentions[id]) || intentions[id]?.length !== 2)
-  )
-    throw new Error('invalid_intentions');
 }
 
 function json(value: unknown, status = 200) {
