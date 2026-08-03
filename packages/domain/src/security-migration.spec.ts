@@ -33,6 +33,10 @@ const variedNarrative = readFileSync(
   resolve(process.cwd(), '../../supabase/migrations/202608030002_varied_mock_narrative.sql'),
   'utf8',
 );
+const submissionStatus = readFileSync(
+  resolve(process.cwd(), '../../supabase/migrations/202608030003_turn_submission_status.sql'),
+  'utf8',
+);
 describe('Supabase security migration', () => {
   it('enables RLS and protects private goals and decisions', () => {
     expect(initial.match(/enable row level security/g)?.length).toBeGreaterThanOrEqual(12);
@@ -74,5 +78,12 @@ describe('Supabase security migration', () => {
     expect(variedNarrative).toContain('Décoder la transmission');
     expect(variedNarrative).toContain('Refuge du témoin');
     expect(variedNarrative).toContain('Upgrade open scenes');
+  });
+  it('exposes only aggregate submission status to game members', () => {
+    expect(submissionStatus).toContain('public.is_game_member(target_game_id)');
+    expect(submissionStatus).toContain('returns table(player_id uuid,submitted boolean)');
+    expect(submissionStatus).not.toContain('action_text');
+    expect(submissionStatus).not.toContain('intention_id');
+    expect(submissionStatus).not.toContain('decision.source');
   });
 });

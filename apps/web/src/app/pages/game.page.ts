@@ -306,12 +306,15 @@ export class GamePage implements OnInit, OnDestroy {
   readonly selectedId = signal<string | null>(null);
   readonly selectedAction = signal('');
   readonly submitting = signal(false);
+  readonly submissionStatusLoading = signal(true);
+  readonly submittedPlayerIds = signal<ReadonlySet<string>>(new Set());
   readonly now = signal(Date.now());
   freeAction = '';
   private pollId: number | undefined;
   private timeoutSubmitting = false;
   private resolutionRetrying = false;
   private realtimeChannel: RealtimeChannel | null = null;
+  private pollTicks = 0;
   readonly turn = computed(() => this.game()?.turns.at(-1));
   readonly me = computed<Character | undefined>(
     () =>
@@ -327,14 +330,16 @@ export class GamePage implements OnInit, OnDestroy {
       'Votre motivation émergera avec l’histoire.',
   );
   readonly suggestions = computed(() => this.turn()?.intentions[this.me()?.id ?? ''] ?? []);
-  readonly alreadySubmitted = computed(
-    () => this.turn()?.decisions.some((d) => d.playerId === this.auth.user()?.id) ?? false,
+  readonly alreadySubmitted = computed(() =>
+    this.submittedPlayerIds().has(this.auth.user()?.id ?? ''),
   );
   readonly previousResolution = computed(() => this.game()?.turns.at(-2)?.resolution ?? null);
   readonly partnerStatus = computed(() =>
-    this.turn()?.decisions.some((d) => d.characterId === this.partner()?.id)
-      ? 'Décision envoyée'
-      : 'En réflexion…',
+    this.submissionStatusLoading()
+      ? 'Synchronisation…'
+      : this.submittedPlayerIds().has(this.partner()?.ownerId ?? '')
+        ? 'Décision verrouillée'
+        : 'En réflexion…',
   );
   readonly secondsRemaining = computed(() => {
     const current = this.game();
@@ -378,7 +383,8 @@ export class GamePage implements OnInit, OnDestroy {
     }
     this.pollId = window.setInterval(() => {
       this.now.set(Date.now());
-      if (this.now() % 5_000 < 1_000) void this.reload(false);
+      this.pollTicks += 1;
+      if (this.pollTicks % 3 === 0) void this.reload(false);
       if (this.secondsRemaining() === 0) void this.submitTimeout();
     }, 1_000);
   }
@@ -390,6 +396,7 @@ export class GamePage implements OnInit, OnDestroy {
     if (showLoading) this.loading.set(true);
     try {
       this.game.set(await this.games.load(this.gameId));
+      await this.refreshSubmissionStatus();
       this.error.set('');
       if (this.alreadySubmitted() && !this.resolutionRetrying) {
         this.resolutionRetrying = true;
@@ -397,6 +404,7 @@ export class GamePage implements OnInit, OnDestroy {
           const status = await this.games.resolveCurrentTurn(this.gameId);
           if (status === 'resolved' || status === 'already_resolved') {
             this.game.set(await this.games.load(this.gameId));
+            await this.refreshSubmissionStatus();
           }
         } finally {
           this.resolutionRetrying = false;
@@ -407,6 +415,20 @@ export class GamePage implements OnInit, OnDestroy {
     } finally {
       this.loading.set(false);
     }
+  }
+  private async refreshSubmissionStatus(): Promise<void> {
+    const activeTurn = this.turn();
+    if (!activeTurn) {
+      this.submittedPlayerIds.set(new Set());
+      this.submissionStatusLoading.set(false);
+      return;
+    }
+    this.submissionStatusLoading.set(true);
+    const statuses = await this.games.getTurnSubmissionStatus(this.gameId, activeTurn.id);
+    this.submittedPlayerIds.set(
+      new Set(statuses.filter((status) => status.submitted).map((status) => status.playerId)),
+    );
+    this.submissionStatusLoading.set(false);
   }
   timerLabel() {
     const current = this.game();

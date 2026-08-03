@@ -21,6 +21,8 @@ export type GameDraft = {
   world: WorldDefinition;
 };
 
+export type TurnSubmissionStatus = { playerId: string; submitted: boolean };
+
 export type LocalAdventure = GameSummary & {
   ownerId: string;
   playerIds: string[];
@@ -359,6 +361,27 @@ export class GameService {
     return String(data) as 'started' | 'already_started' | 'waiting_for_characters';
   }
 
+  async getTurnSubmissionStatus(gameId: string, turnId: string): Promise<TurnSubmissionStatus[]> {
+    const client = this.auth.supabase;
+    if (!client) {
+      const game = await this.load(gameId);
+      const turn = game.turns.find((item) => item.id === turnId);
+      return game.playerIds.map((playerId) => ({
+        playerId,
+        submitted: turn?.decisions.some((decision) => decision.playerId === playerId) ?? false,
+      }));
+    }
+    const { data, error } = await client.rpc('get_turn_submission_status', {
+      target_turn_id: turnId,
+    });
+    if (error) throw error;
+    const statuses = (data ?? []) as Array<{ player_id: unknown; submitted: unknown }>;
+    return statuses.map((status) => ({
+      playerId: String(status.player_id),
+      submitted: Boolean(status.submitted),
+    }));
+  }
+
   async resolveCurrentTurn(gameId: string): Promise<string> {
     const game = await this.load(gameId);
     const turn = game.turns.at(-1);
@@ -470,7 +493,7 @@ export class GameService {
 
   private ensureOpening(gameId: string): void {
     const game = this.localGames().find((item) => item.id === gameId);
-    if (!game || game.turns.length) return;
+    if (!game || game.turns.length || game.characters.length !== 2) return;
     const now = new Date().toISOString();
     const goals = game.characters.map((character, index) => ({
       id: crypto.randomUUID(),

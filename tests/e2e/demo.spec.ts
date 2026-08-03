@@ -63,6 +63,10 @@ test('keeps two real browser pages secret and resolves exactly once', async ({ c
   await page.getByLabel(/écrivez librement votre action/i).fill('ouvrir le coffre scellé de Sora');
   await page.getByRole('button', { name: 'Valider en secret' }).click();
   await expect(page.getByText('Décision verrouillée')).toBeVisible();
+  await expect(partner.getByText('Décision verrouillée')).toBeVisible({ timeout: 5_000 });
+  await expect(partner.getByText(/ouvrir le coffre scellé de Sora/i)).not.toBeVisible();
+  await partner.reload();
+  await expect(partner.getByText('Décision verrouillée')).toBeVisible();
   await expect(partner.getByText(/ouvrir le coffre scellé de Sora/i)).not.toBeVisible();
   await partner.getByRole('button', { name: /Prendre l’initiative/ }).click();
   await partner.getByRole('button', { name: 'Valider en secret' }).click();
@@ -70,6 +74,7 @@ test('keeps two real browser pages secret and resolves exactly once', async ({ c
   await page.reload();
   await expect(page.getByText('TOUR 2')).toBeVisible();
   await expect(page.getByText('Conséquence précédente')).toHaveCount(1);
+  await expect(page.getByText('En réflexion…')).toBeVisible();
 });
 
 test('creates a server-equivalent timeout decision in Mock mode', async ({ page }) => {
