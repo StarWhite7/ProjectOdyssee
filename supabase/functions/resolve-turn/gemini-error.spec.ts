@@ -44,11 +44,91 @@ describe('Gemini API errors', () => {
     });
   });
 
-  it.each([400, 500])('maps a non-temporary %i to a non-retryable failure', async (status) => {
+  it.each([
+    [400, 'INVALID_ARGUMENT', 400, 'GEMINI_INVALID_REQUEST', false],
+    [403, 'PERMISSION_DENIED', 403, 'GEMINI_AUTHORIZATION_FAILED', false],
+    [404, 'NOT_FOUND', 404, 'GEMINI_MODEL_NOT_FOUND', false],
+    [429, 'RESOURCE_EXHAUSTED', 429, 'GEMINI_QUOTA_EXHAUSTED', true],
+    [500, 'INTERNAL', 500, 'GEMINI_INTERNAL_ERROR', false],
+    [503, 'UNAVAILABLE', 503, 'GEMINI_TEMPORARILY_UNAVAILABLE', true],
+  ])(
+    'preserves HTTP %i and maps %s safely',
+    async (httpStatus, googleStatus, googleCode, code, retryable) => {
+      const error = await geminiErrorFromResponse(
+        new Response(
+          JSON.stringify({
+            error: { status: googleStatus, code: googleCode, message: 'Safe Google diagnostic' },
+          }),
+          { status: httpStatus },
+        ),
+      );
+
+      expect(error).toMatchObject({
+        status: httpStatus,
+        httpStatus,
+        googleStatus,
+        googleCode,
+        code,
+        safeMessage: 'Safe Google diagnostic',
+        retryable,
+      });
+    },
+  );
+
+  it('classifies a non-JSON response from its real HTTP status without logging its body', async () => {
     const error = await geminiErrorFromResponse(
-      new Response(JSON.stringify({ error: { status: 'INVALID_ARGUMENT' } }), { status }),
+      new Response('raw upstream response containing private data', { status: 418 }),
     );
-    expect(error).toMatchObject({ status: 500, code: 'GEMINI_REQUEST_FAILED', retryable: false });
+    expect(error).toMatchObject({
+      httpStatus: 418,
+      googleStatus: null,
+      googleCode: null,
+      safeMessage: null,
+      code: 'GEMINI_REQUEST_FAILED',
+      retryable: false,
+    });
+    expect(JSON.stringify(error)).not.toContain('private data');
+  });
+
+  it('truncates the Google message to 300 characters and removes the API key', async () => {
+    const apiKey = 'AIza-test-secret-key-that-must-never-leak';
+    const error = await geminiErrorFromResponse(
+      new Response(
+        JSON.stringify({
+          error: {
+            status: 'INVALID_ARGUMENT',
+            code: 400,
+            message: `${'x'.repeat(180)}${apiKey}${'y'.repeat(180)}`,
+          },
+        }),
+        { status: 400 },
+      ),
+      apiKey,
+    );
+
+    expect(error.safeMessage?.length).toBeLessThanOrEqual(300);
+    expect(error.safeMessage).not.toContain(apiKey);
+    expect(JSON.stringify(error)).not.toContain(apiKey);
+  });
+
+  it('never returns the safe Google diagnostic to the player', async () => {
+    const error = await geminiErrorFromResponse(
+      new Response(
+        JSON.stringify({
+          error: { status: 'INVALID_ARGUMENT', code: 400, message: 'Internal Google diagnostic' },
+        }),
+        { status: 400 },
+      ),
+    );
+    const response = await handleResolutionFailure(
+      { rpc: vi.fn().mockResolvedValue({}) },
+      'turn-id',
+      error,
+      {},
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain('Internal Google diagnostic');
   });
 
   it('records the recoverable turn before returning a retryable response', async () => {

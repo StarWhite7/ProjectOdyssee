@@ -42,7 +42,7 @@ export async function callGemini(
         signal: AbortSignal.timeout(30_000),
       },
     );
-    if (!response.ok) throw await geminiErrorFromResponse(response);
+    if (!response.ok) throw await geminiErrorFromResponse(response, apiKey);
 
     let payload: unknown;
     try {
@@ -83,15 +83,39 @@ export function parseGeminiJson(text: string): unknown {
 }
 
 function safeGeminiFailure(error: unknown): {
-  status: number | null;
+  httpStatus: number | null;
+  googleStatus: string | null;
+  googleCode: number | null;
   code: string;
+  safeMessage: string | null;
   retryable: boolean;
 } {
   if (error instanceof GeminiApiError) {
-    return { status: error.status, code: error.code, retryable: error.retryable };
+    return {
+      httpStatus: error.httpStatus,
+      googleStatus: error.googleStatus,
+      googleCode: error.googleCode,
+      code: error.code,
+      safeMessage: error.safeMessage,
+      retryable: error.retryable,
+    };
   }
   if (error instanceof GeminiResponseError) {
-    return { status: 200, code: error.code, retryable: false };
+    return {
+      httpStatus: 200,
+      googleStatus: null,
+      googleCode: null,
+      code: error.code,
+      safeMessage: null,
+      retryable: false,
+    };
   }
-  return { status: null, code: 'GEMINI_REQUEST_FAILED', retryable: false };
+  return {
+    httpStatus: null,
+    googleStatus: null,
+    googleCode: null,
+    code: 'GEMINI_REQUEST_FAILED',
+    safeMessage: null,
+    retryable: false,
+  };
 }

@@ -81,6 +81,46 @@ describe('Gemini client', () => {
     expect(output).not.toContain('private action');
   });
 
+  it('logs the safe structured Google diagnostic and keeps the player response generic', async () => {
+    const logs = logger();
+    const apiKey = 'AIza-client-secret-key-that-must-not-leak';
+    const request = callGemini(
+      { decision: 'private action' },
+      ['character-1'],
+      'gemini-2.5-flash',
+      apiKey,
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              status: 'INVALID_ARGUMENT',
+              code: 400,
+              message: `Invalid request using ${apiKey}`,
+            },
+          }),
+          { status: 400 },
+        ),
+      ),
+      logs,
+    );
+
+    await expect(request).rejects.toMatchObject({ code: 'GEMINI_INVALID_REQUEST' });
+    expect(logs.error).toHaveBeenCalledWith(
+      JSON.stringify({
+        event: 'gemini_request_failed',
+        model: 'gemini-2.5-flash',
+        httpStatus: 400,
+        googleStatus: 'INVALID_ARGUMENT',
+        googleCode: 400,
+        code: 'GEMINI_INVALID_REQUEST',
+        safeMessage: 'Invalid request using [REDACTED]',
+        retryable: false,
+      }),
+    );
+    expect(JSON.stringify(logs.error.mock.calls)).not.toContain(apiKey);
+    expect(JSON.stringify(logs.error.mock.calls)).not.toContain('private action');
+  });
+
   it('does not expose keys, service-role values or decisions in logs', async () => {
     const logs = logger();
     await expect(
