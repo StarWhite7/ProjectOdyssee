@@ -22,7 +22,7 @@ test.beforeEach(async ({ page, context }) => {
   await context.route('**/config.js', async (route) =>
     route.fulfill({
       contentType: 'application/javascript',
-      body: "window.__ODYSSEE_CONFIG__={supabaseUrl:'',supabaseAnonKey:'',aiProvider:'mock'};",
+      body: "window.__ODYSSEE_CONFIG__={supabaseUrl:'',supabaseAnonKey:''};",
     }),
   );
   await page.goto('/');

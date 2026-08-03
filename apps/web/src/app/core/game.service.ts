@@ -2,7 +2,6 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { characterInputSchema, worldDefinitionSchema } from '@odyssee/domain';
 import type { Character, WorldDefinition } from '@odyssee/domain';
 import { AuthService } from './auth.service';
-import { runtimeConfig } from './runtime-config';
 
 export type GameSummary = {
   id: string;
@@ -392,18 +391,12 @@ export class GameService {
   private async resolveTurn(turnId: string): Promise<string> {
     const client = this.auth.supabase;
     if (!client) return 'mock_local';
-    if (runtimeConfig.aiProvider === 'gemini') {
-      const { data, error } = await client.functions.invoke('resolve-turn', {
-        body: { turnId },
-      });
-      if (error) throw error;
-      return String((data as { status?: string } | null)?.status ?? 'requested');
-    }
-    const { data, error } = await client.rpc('resolve_ready_turn_mock', {
-      target_turn_id: turnId,
+
+    const { data, error } = await client.functions.invoke('resolve-turn', {
+      body: { turnId },
     });
     if (error) throw error;
-    return String(data);
+    return String((data as { status?: string } | null)?.status ?? 'requested');
   }
 
   createDemo(): string {
