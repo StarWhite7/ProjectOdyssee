@@ -1,3 +1,4 @@
+import { AiConfigurationError } from './ai-provider.ts';
 import { GeminiApiError, publicGeminiError } from './gemini-error.ts';
 
 type RpcClient = {
@@ -14,7 +15,10 @@ export async function handleResolutionFailure(
   headers: Record<string, string>,
 ): Promise<Response> {
   if (turnId) {
-    const safeError = error instanceof GeminiApiError ? error.code : 'unexpected_resolution_error';
+    const safeError =
+      error instanceof GeminiApiError || error instanceof AiConfigurationError
+        ? error.code
+        : 'unexpected_resolution_error';
     await admin.rpc('fail_turn_resolution', {
       target_turn_id: turnId,
       safe_error: safeError,
@@ -23,6 +27,18 @@ export async function handleResolutionFailure(
 
   if (error instanceof GeminiApiError && error.retryable) {
     return response(publicGeminiError(error), error.status, headers);
+  }
+
+  if (error instanceof AiConfigurationError) {
+    return response(
+      {
+        error: 'ai_configuration_error',
+        retryable: false,
+        message: 'Le moteur narratif est mal configuré.',
+      },
+      500,
+      headers,
+    );
   }
 
   return response(

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { AiConfigurationError } from './ai-provider';
 import { geminiErrorFromResponse, publicGeminiError } from './gemini-error';
 import { handleResolutionFailure } from './resolution-error';
 
@@ -75,5 +76,26 @@ describe('Gemini API errors', () => {
     expect(rpc).toHaveBeenCalledOnce();
     expect(response.status).toBe(500);
     expect(await response.text()).not.toContain('internal secret');
+  });
+
+  it('returns a safe non-retryable configuration error and releases the claimed turn', async () => {
+    const rpc = vi.fn().mockResolvedValue({});
+    const response = await handleResolutionFailure(
+      { rpc },
+      'turn-id',
+      new AiConfigurationError('gemini_not_configured'),
+      {},
+    );
+
+    expect(rpc).toHaveBeenCalledWith('fail_turn_resolution', {
+      target_turn_id: 'turn-id',
+      safe_error: 'gemini_not_configured',
+    });
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: 'ai_configuration_error',
+      retryable: false,
+      message: 'Le moteur narratif est mal configuré.',
+    });
   });
 });
