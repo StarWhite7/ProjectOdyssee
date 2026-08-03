@@ -1,17 +1,21 @@
 import type { OnDestroy, OnInit } from '@angular/core';
 import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
 import type { LocalAdventure } from '../core/game.service';
+import { DeleteGameDialogComponent } from '../shared/delete-game-dialog.component';
 
 @Component({
   selector: 'app-lobby',
-  imports: [RouterLink],
+  imports: [RouterLink, DeleteGameDialogComponent],
   template: `<div class="shell">
     <header class="topbar">
-      <a class="brand" routerLink="/tableau-de-bord">ODYSSÉE</a
-      ><span class="pill">Salon privé</span>
+      <a class="brand" routerLink="/tableau-de-bord">ODYSSÉE</a>
+      <div class="lobby-actions">
+        <span class="pill">Salon privé</span>
+        <app-delete-game-dialog [gameId]="gameId" (deleted)="onGameDeleted()" />
+      </div>
     </header>
     <main id="main">
       @if (loading()) {
@@ -93,6 +97,11 @@ import type { LocalAdventure } from '../core/game.service';
       .code {
         text-align: center;
       }
+      .lobby-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+      }
       .code strong {
         display: block;
         font: 600 clamp(2rem, 8vw, 4rem) 'Newsreader';
@@ -142,6 +151,8 @@ export class LobbyPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly games = inject(GameService);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  readonly gameId = this.route.snapshot.paramMap.get('id')!;
   readonly game = signal<LocalAdventure | null>(null);
   readonly loading = signal(true);
   readonly error = signal('');
@@ -157,15 +168,27 @@ export class LobbyPage implements OnInit, OnDestroy {
   private async refresh(showLoading = true): Promise<void> {
     if (showLoading) this.loading.set(true);
     try {
-      const gameId = this.route.snapshot.paramMap.get('id')!;
-      await this.games.startIfReady(gameId);
-      this.game.set(await this.games.load(gameId));
+      await this.games.startIfReady(this.gameId);
+      this.game.set(await this.games.load(this.gameId));
       this.error.set('');
     } catch (e) {
+      if (this.games.isGameMissingError(e)) {
+        if (this.refreshTimer) clearInterval(this.refreshTimer);
+        await this.router.navigate(['/tableau-de-bord'], {
+          queryParams: { partieSupprimee: 'autre' },
+        });
+        return;
+      }
       this.error.set(e instanceof Error ? e.message : 'Chargement impossible.');
     } finally {
       this.loading.set(false);
     }
+  }
+  async onGameDeleted(): Promise<void> {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    await this.router.navigate(['/tableau-de-bord'], {
+      queryParams: { partieSupprimee: '1' },
+    });
   }
   ownCharacter() {
     return this.game()?.characters.some((c) => c.ownerId === this.auth.user()?.id) ?? false;

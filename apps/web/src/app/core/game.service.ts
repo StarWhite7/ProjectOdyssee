@@ -146,6 +146,35 @@ export class GameService {
     return game.id;
   }
 
+  async deleteGameForAll(gameId: string): Promise<'deleted' | 'already_deleted'> {
+    const client = this.auth.supabase;
+    if (client) {
+      const { data, error } = await client.rpc('delete_game_for_all', {
+        target_game_id: gameId,
+      });
+      if (error) throw error;
+      await this.refresh();
+      return String(data) === 'already_deleted' ? 'already_deleted' : 'deleted';
+    }
+    const games = this.readLocalGames();
+    const existing = games.find((game) => game.id === gameId);
+    if (!existing) return 'already_deleted';
+    if (!existing.playerIds.includes(this.requireUser().id)) throw new Error('forbidden');
+    this.save(games.filter((game) => game.id !== gameId));
+    return 'deleted';
+  }
+
+  isGameMissingError(error: unknown): boolean {
+    if (error instanceof Error && error.message.includes('Partie introuvable')) return true;
+    if (!error || typeof error !== 'object') return false;
+    const candidate = error as Record<string, unknown>;
+    const code = typeof candidate['code'] === 'string' ? candidate['code'] : '';
+    const message = typeof candidate['message'] === 'string' ? candidate['message'] : '';
+    return (
+      code === 'PGRST116' || message.includes('0 rows') || message.includes('JSON object requested')
+    );
+  }
+
   async load(id: string): Promise<LocalAdventure> {
     const client = this.auth.supabase;
     if (!client) {

@@ -1,7 +1,7 @@
 begin;
 -- Run with: supabase test db (after creating three Auth fixtures in a local stack).
 -- These assertions are documented executable probes for the critical policies.
-select plan(24);
+select plan(39);
 select has_table('public','games','games exists');
 select has_table('public','player_decisions','decisions exist');
 select col_is_unique('public','player_decisions',array['turn_id','player_id'],'one decision per player and turn');
@@ -26,5 +26,20 @@ select ok(has_table_privilege('service_role','public.audit_events','INSERT') and
 select ok(not has_table_privilege('service_role','public.audit_events','SELECT'),'service role does not read audit events');
 select ok(has_sequence_privilege('service_role','public.audit_events_id_seq','USAGE'),'service role uses audit identity sequence');
 select ok(has_sequence_privilege('service_role','public.audit_events_id_seq','SELECT'),'service role reads audit identity sequence state');
+select function_privs_are('public','delete_game_for_all',array['uuid'],'authenticated',array['EXECUTE'],'game deletion is exposed only through the authenticated RPC');
+select ok(position('auth.uid() is null' in pg_get_functiondef('public.delete_game_for_all(uuid)'::regprocedure))>0,'game deletion rejects unauthenticated callers');
+select ok(position('member.player_id = auth.uid()' in pg_get_functiondef('public.delete_game_for_all(uuid)'::regprocedure))>0,'game deletion checks active membership');
+select ok(position('for update' in lower(pg_get_functiondef('public.delete_game_for_all(uuid)'::regprocedure)))>0,'game deletion locks concurrent requests');
+select ok(position('already_deleted' in pg_get_functiondef('public.delete_game_for_all(uuid)'::regprocedure))>0,'game deletion is safely idempotent');
+select ok(position('delete from public.audit_events' in pg_get_functiondef('public.delete_game_for_all(uuid)'::regprocedure))>0,'game deletion clears audit rows explicitly');
+select ok(exists(select 1 from pg_constraint where conrelid='public.game_players'::regclass and confrelid='public.games'::regclass and confdeltype='c'),'game players cascade with games');
+select ok(exists(select 1 from pg_constraint where conrelid='public.characters'::regclass and confrelid='public.games'::regclass and confdeltype='c'),'characters cascade with games');
+select ok(exists(select 1 from pg_constraint where conrelid='public.world_states'::regclass and confrelid='public.games'::regclass and confdeltype='c'),'world state cascades with games');
+select ok(exists(select 1 from pg_constraint where conrelid='public.character_goals'::regclass and confrelid='public.games'::regclass and confdeltype='c'),'goals cascade with games');
+select ok(exists(select 1 from pg_constraint where conrelid='public.story_turns'::regclass and confrelid='public.games'::regclass and confdeltype='c'),'story turns cascade with games');
+select ok(exists(select 1 from pg_constraint where conrelid='public.player_decisions'::regclass and confrelid='public.games'::regclass and confdeltype='c'),'decisions cascade with games');
+select ok(exists(select 1 from pg_constraint where conrelid='public.memories'::regclass and confrelid='public.games'::regclass and confdeltype='c'),'memories cascade with games');
+select ok(exists(select 1 from pg_constraint where conrelid='public.relationships'::regclass and confrelid='public.games'::regclass and confdeltype='c'),'relationships cascade with games');
+select ok(exists(select 1 from pg_constraint where conrelid='public.narrative_summaries'::regclass and confrelid='public.games'::regclass and confdeltype='c'),'summaries cascade with games');
 select * from finish();
 rollback;

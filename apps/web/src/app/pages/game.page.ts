@@ -1,16 +1,17 @@
 import type { OnDestroy, OnInit } from '@angular/core';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import type { Character } from '@odyssee/domain';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
 import type { LocalAdventure } from '../core/game.service';
+import { DeleteGameDialogComponent } from '../shared/delete-game-dialog.component';
 
 @Component({
   selector: 'app-game',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, DeleteGameDialogComponent],
   template: `<div class="shell">
     <header class="topbar">
       <a class="brand" routerLink="/tableau-de-bord">ODYSSÉE</a>
@@ -19,7 +20,10 @@ import type { LocalAdventure } from '../core/game.service';
         ><a [routerLink]="['/aventure', gameId, 'souvenirs']">Souvenirs</a
         ><a [routerLink]="['/aventure', gameId, 'personnages']">Personnages</a>
       </nav>
-      <span class="pill">{{ timerLabel() }}</span>
+      <div class="game-actions">
+        <span class="pill">{{ timerLabel() }}</span>
+        <app-delete-game-dialog [gameId]="gameId" (deleted)="onGameDeleted()" />
+      </div>
     </header>
     <main id="main">
       @if (loading()) {
@@ -139,6 +143,11 @@ import type { LocalAdventure } from '../core/game.service';
       nav a {
         color: var(--muted);
         text-decoration: none;
+      }
+      .game-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
       }
       .game-grid {
         display: grid;
@@ -298,6 +307,7 @@ export class GamePage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly games = inject(GameService);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
   readonly gameId = this.route.snapshot.paramMap.get('id')!;
   readonly game = signal<LocalAdventure | null>(null);
   readonly loading = signal(true);
@@ -318,6 +328,7 @@ export class GamePage implements OnInit, OnDestroy {
   private timeoutSubmitting = false;
   private resolutionRetrying = false;
   private realtimeChannel: RealtimeChannel | null = null;
+  private redirectingAfterDeletion = false;
   readonly turn = computed(() => this.game()?.turns.at(-1));
   readonly me = computed<Character | undefined>(
     () =>
@@ -413,10 +424,29 @@ export class GamePage implements OnInit, OnDestroy {
         }
       }
     } catch (e) {
+      if (this.games.isGameMissingError(e)) {
+        await this.redirectAfterRemoteDeletion();
+        return;
+      }
       this.error.set(e instanceof Error ? e.message : 'Chargement impossible.');
     } finally {
       this.loading.set(false);
     }
+  }
+  async onGameDeleted(): Promise<void> {
+    await this.router.navigate(['/tableau-de-bord'], {
+      queryParams: { partieSupprimee: '1' },
+    });
+  }
+  private async redirectAfterRemoteDeletion(): Promise<void> {
+    if (this.redirectingAfterDeletion || this.destroyed) return;
+    this.redirectingAfterDeletion = true;
+    this.stopSubmissionStatusPolling();
+    if (this.clockIntervalId) clearInterval(this.clockIntervalId);
+    if (this.realtimeChannel) await this.auth.supabase?.removeChannel(this.realtimeChannel);
+    await this.router.navigate(['/tableau-de-bord'], {
+      queryParams: { partieSupprimee: 'autre' },
+    });
   }
   private async syncSubmissionStatusForCurrentTurn(): Promise<void> {
     const activeTurn = this.turn();

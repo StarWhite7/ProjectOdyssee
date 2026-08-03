@@ -44,6 +44,10 @@ const serviceRolePrivileges = readFileSync(
   ),
   'utf8',
 );
+const deleteGame = readFileSync(
+  resolve(process.cwd(), '../../supabase/migrations/202608030005_delete_game_for_all.sql'),
+  'utf8',
+);
 describe('Supabase security migration', () => {
   it('enables RLS and protects private goals and decisions', () => {
     expect(initial.match(/enable row level security/g)?.length).toBeGreaterThanOrEqual(12);
@@ -114,5 +118,18 @@ describe('Supabase security migration', () => {
     );
     expect(serviceRolePrivileges).not.toMatch(/\b(delete|truncate)\b/);
     expect(serviceRolePrivileges).not.toMatch(/\b(anon|authenticated)\b/);
+  });
+  it('deletes a game atomically only for an active member and clears non-cascading audit rows', () => {
+    expect(deleteGame).toContain('create function public.delete_game_for_all');
+    expect(deleteGame).toContain('for update');
+    expect(deleteGame).toContain('member.player_id = auth.uid()');
+    expect(deleteGame).toContain('member.abandoned_at is null');
+    expect(deleteGame).toContain('delete from public.audit_events');
+    expect(deleteGame).toContain('delete from public.games');
+    expect(deleteGame).toContain("return 'already_deleted'");
+    expect(deleteGame).toContain('grant execute on function public.delete_game_for_all(uuid)');
+    expect(deleteGame).not.toContain(
+      'grant execute on function public.delete_game_for_all(uuid) to anon',
+    );
   });
 });

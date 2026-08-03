@@ -1,13 +1,14 @@
 import type { OnInit } from '@angular/core';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
+import { DeleteGameDialogComponent } from '../shared/delete-game-dialog.component';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, DeleteGameDialogComponent],
   template: `<div class="shell">
     <header class="topbar">
       <a class="brand" routerLink="/">ODYSSÉE</a>
@@ -77,18 +78,24 @@ import { GameService } from '../core/game.service';
           <h3 class="list-title">Vos aventures</h3>
           <div class="grid">
             @for (game of games.games(); track game.id) {
-              <a
-                class="game-card panel"
-                [routerLink]="['/aventure', game.id, game.status === 'active' ? 'jouer' : 'salon']"
-                ><div>
-                  <strong>{{ game.title }}</strong>
-                  <p>
-                    Tour {{ game.turnNumber }} ·
-                    {{ game.playMode === 'realtime' ? 'Temps réel' : 'Mode libre' }}
-                  </p>
-                </div>
-                <span class="pill">{{ label(game.status) }}</span></a
-              >
+              <article class="game-card panel">
+                <a
+                  [routerLink]="[
+                    '/aventure',
+                    game.id,
+                    game.status === 'active' ? 'jouer' : 'salon',
+                  ]"
+                  ><div>
+                    <strong>{{ game.title }}</strong>
+                    <p>
+                      Tour {{ game.turnNumber }} ·
+                      {{ game.playMode === 'realtime' ? 'Temps réel' : 'Mode libre' }}
+                    </p>
+                  </div>
+                  <span class="pill">{{ label(game.status) }}</span></a
+                >
+                <app-delete-game-dialog [gameId]="game.id" (deleted)="onGameDeleted()" />
+              </article>
             } @empty {
               <div class="empty panel"><p>Aucune aventure pour le moment.</p></div>
             }
@@ -134,6 +141,10 @@ import { GameService } from '../core/game.service';
         font-size: 1.7rem;
       }
       .game-card {
+        display: grid;
+        gap: 0.8rem;
+      }
+      .game-card a {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -154,6 +165,7 @@ export class DashboardPage implements OnInit {
   readonly auth = inject(AuthService);
   readonly games = inject(GameService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   title = 'Une aventure sans titre';
   genre = 'Cité futuriste';
   description = '';
@@ -168,11 +180,20 @@ export class DashboardPage implements OnInit {
   readonly message = signal('');
   readonly error = signal(false);
   async ngOnInit() {
+    const deletion = this.route.snapshot.queryParamMap.get('partieSupprimee');
+    if (deletion === 'autre')
+      this.message.set('Cette aventure a été supprimée définitivement par l’autre joueur.');
+    else if (deletion === '1') this.message.set('La partie a été supprimée définitivement.');
     try {
       await this.games.refresh();
     } catch (e) {
       this.fail(e);
     }
+  }
+  async onGameDeleted(): Promise<void> {
+    this.error.set(false);
+    this.message.set('La partie a été supprimée définitivement.');
+    await this.games.refresh();
   }
   async create() {
     this.busy.set(true);

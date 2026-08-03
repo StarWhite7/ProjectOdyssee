@@ -70,4 +70,24 @@ describe('GameService turn resolution transport', () => {
     expect(remoteClient.functions.invoke).not.toHaveBeenCalled();
     expect(remoteClient.rpc).not.toHaveBeenCalled();
   });
+
+  it('deletes a Supabase game through the protected RPC and refreshes the list', async () => {
+    client!.rpc.mockResolvedValue({ data: 'deleted', error: null });
+    const refresh = vi.spyOn(service, 'refresh').mockResolvedValue();
+
+    await expect(service.deleteGameForAll('game-42')).resolves.toBe('deleted');
+    expect(client!.rpc).toHaveBeenCalledWith('delete_game_for_all', {
+      target_game_id: 'game-42',
+    });
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it('propagates deletion errors without mutating the local list', async () => {
+    const error = new Error('forbidden');
+    client!.rpc.mockResolvedValue({ data: null, error });
+    const refresh = vi.spyOn(service, 'refresh');
+
+    await expect(service.deleteGameForAll('game-42')).rejects.toBe(error);
+    expect(refresh).not.toHaveBeenCalled();
+  });
 });

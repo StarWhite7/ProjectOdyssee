@@ -77,6 +77,16 @@ test('keeps two real browser pages secret and resolves exactly once', async ({ c
   await expect(page.getByText('TOUR 2')).toBeVisible();
   await expect(page.getByText('Conséquence précédente')).toHaveCount(1);
   await expect(page.getByText('En réflexion…')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Quitter l’aventure' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByLabel('Saisissez SUPPRIMER pour confirmer').fill('SUPPRIMER');
+  await page.getByRole('button', { name: 'Supprimer définitivement la partie' }).click();
+  await expect(page).toHaveURL(/tableau-de-bord/);
+  await expect(partner).toHaveURL(/tableau-de-bord/, { timeout: 6_000 });
+  await expect(
+    partner.getByText('Cette aventure a été supprimée définitivement par l’autre joueur.'),
+  ).toBeVisible();
 });
 
 test('creates a server-equivalent timeout decision in Mock mode', async ({ page }) => {
