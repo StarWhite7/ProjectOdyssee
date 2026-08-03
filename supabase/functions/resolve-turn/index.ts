@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
 import { readAiConfiguration, resolveWithProvider } from './ai-provider.ts';
 import { callGemini } from './gemini-client.ts';
+import { runLoadContextStep } from './load-context-logging.ts';
 import { buildMockResolutionNarration } from './mock-resolution.ts';
 import { handleResolutionFailure } from './resolution-error.ts';
 import { validateAndNormalizeResult } from './resolution-result.ts';
@@ -60,49 +61,58 @@ Deno.serve(async (request) => {
 });
 
 async function loadContext(admin: ReturnType<typeof createClient>, turnId: string) {
-  const { data: turn, error } = await admin
-    .from('story_turns')
-    .select('*,player_decisions(*)')
-    .eq('id', turnId)
-    .single();
-  if (error) throw error;
+  const turn = await runLoadContextStep('story_turns', () =>
+    admin.from('story_turns').select('*,player_decisions(*)').eq('id', turnId).single(),
+  );
   const [game, world, characters, goals, recentTurns, memories, summaries] = await Promise.all([
-    admin.from('games').select('*').eq('id', turn.game_id).single(),
-    admin.from('world_states').select('*').eq('game_id', turn.game_id).single(),
-    admin.from('characters').select('*').eq('game_id', turn.game_id),
-    admin.from('character_goals').select('*').eq('game_id', turn.game_id).eq('status', 'active'),
-    admin
-      .from('story_turns')
-      .select('*')
-      .eq('game_id', turn.game_id)
-      .lt('turn_number', turn.turn_number)
-      .order('turn_number', { ascending: false })
-      .limit(Number(Deno.env.get('RECENT_TURNS_CONTEXT_COUNT') ?? 6)),
-    admin
-      .from('memories')
-      .select('*')
-      .eq('game_id', turn.game_id)
-      .order('importance', { ascending: false })
-      .limit(12),
-    admin
-      .from('narrative_summaries')
-      .select('*')
-      .eq('game_id', turn.game_id)
-      .order('through_turn_number', { ascending: false })
-      .limit(1),
+    runLoadContextStep('games', () =>
+      admin.from('games').select('*').eq('id', turn.game_id).single(),
+    ),
+    runLoadContextStep('world_states', () =>
+      admin.from('world_states').select('*').eq('game_id', turn.game_id).single(),
+    ),
+    runLoadContextStep('characters', () =>
+      admin.from('characters').select('*').eq('game_id', turn.game_id),
+    ),
+    runLoadContextStep('character_goals', () =>
+      admin.from('character_goals').select('*').eq('game_id', turn.game_id).eq('status', 'active'),
+    ),
+    runLoadContextStep('recent_turns', () =>
+      admin
+        .from('story_turns')
+        .select('*')
+        .eq('game_id', turn.game_id)
+        .lt('turn_number', turn.turn_number)
+        .order('turn_number', { ascending: false })
+        .limit(Number(Deno.env.get('RECENT_TURNS_CONTEXT_COUNT') ?? 6)),
+    ),
+    runLoadContextStep('memories', () =>
+      admin
+        .from('memories')
+        .select('*')
+        .eq('game_id', turn.game_id)
+        .order('importance', { ascending: false })
+        .limit(12),
+    ),
+    runLoadContextStep('narrative_summaries', () =>
+      admin
+        .from('narrative_summaries')
+        .select('*')
+        .eq('game_id', turn.game_id)
+        .order('through_turn_number', { ascending: false })
+        .limit(1),
+    ),
   ]);
-  for (const response of [game, world, characters, goals, recentTurns, memories, summaries])
-    if (response.error) throw response.error;
   return {
-    game: game.data,
-    world: world.data,
-    characters: characters.data ?? [],
-    goals: goals.data ?? [],
+    game,
+    world,
+    characters: characters ?? [],
+    goals: goals ?? [],
     currentTurn: turn,
     decisions: turn.player_decisions ?? [],
-    recentTurns: recentTurns.data ?? [],
-    memories: memories.data ?? [],
-    summary: summaries.data?.[0] ?? null,
+    recentTurns: recentTurns ?? [],
+    memories: memories ?? [],
+    summary: summaries?.[0] ?? null,
   };
 }
 
