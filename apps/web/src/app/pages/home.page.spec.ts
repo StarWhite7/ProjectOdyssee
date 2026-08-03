@@ -31,7 +31,7 @@ describe('HomePage', () => {
     expect(element.querySelectorAll('h1')).toHaveLength(1);
     expect(element.querySelector('h1')?.textContent).toContain('Votre histoire.');
     expect(element.querySelector('video source')?.getAttribute('src')).toBe(
-      '/video/odyssee-background.mp4.mp4',
+      '/video/odyssee-background.mp4',
     );
     expect(element.querySelector('a[href="/tableau-de-bord"]')).toBeTruthy();
     expect(element.querySelector('a[href="#comment-jouer"]')).toBeTruthy();

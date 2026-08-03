@@ -21,7 +21,7 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
           preload="metadata"
           aria-hidden="true"
         >
-          <source src="/video/odyssee-background.mp4.mp4" type="video/mp4" />
+          <source src="/video/odyssee-background.mp4" type="video/mp4" />
         </video>
         <div class="veil veil-left"></div>
         <div class="veil veil-light"></div>
