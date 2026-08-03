@@ -18,6 +18,7 @@ describe('AmbientAudioControlComponent', () => {
     expect(audio.getAttribute('preload')).toBe('none');
     expect(button.getAttribute('aria-pressed')).toBe('false');
     expect(button.getAttribute('aria-label')).toBe('Activer la musique');
+    expect(fixture.nativeElement.querySelector('input[type="range"]').value).toBe('20');
   });
 
   it('starts playback only after the user activates the control', async () => {
@@ -45,5 +46,30 @@ describe('AmbientAudioControlComponent', () => {
 
     expect(fixture.componentInstance.playing()).toBe(false);
     expect(fixture.componentInstance.label()).toBe('Musique indisponible');
+  });
+
+  it('updates and remembers the volume', () => {
+    const fixture = TestBed.createComponent(AmbientAudioControlComponent);
+    fixture.detectChanges();
+    const audio = fixture.nativeElement.querySelector('audio') as HTMLAudioElement;
+    const slider = fixture.nativeElement.querySelector('input[type="range"]') as HTMLInputElement;
+
+    slider.value = '64';
+    slider.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.volumePercent()).toBe(64);
+    expect(audio.volume).toBe(0.64);
+    expect(localStorage.getItem('odyssee-ambient-audio-volume')).toBe('0.64');
+    expect(fixture.nativeElement.querySelector('output').textContent).toContain('64%');
+  });
+
+  it('restores the saved volume', () => {
+    localStorage.setItem('odyssee-ambient-audio-volume', '0.35');
+
+    const fixture = TestBed.createComponent(AmbientAudioControlComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.volumePercent()).toBe(35);
   });
 });
