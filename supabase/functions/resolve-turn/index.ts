@@ -1,18 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
 import { readAiConfiguration, resolveWithProvider } from './ai-provider.ts';
 import { callGemini } from './gemini-client.ts';
 import { buildMockResolutionNarration } from './mock-resolution.ts';
 import { handleResolutionFailure } from './resolution-error.ts';
 
-const allowedOrigin = Deno.env.get('APP_URL') ?? 'http://localhost:4200';
-const cors = {
-  'Access-Control-Allow-Origin': allowedOrigin,
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-  Vary: 'Origin',
-};
+const cors = createCorsHeaders(Deno.env.get('APP_URL'));
 
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  const preflight = handleCorsPreflight(request, cors);
+  if (preflight) return preflight;
   const auth = request.headers.get('Authorization');
   if (!auth) return json({ error: 'unauthorized' }, 401);
   const userClient = createClient(
