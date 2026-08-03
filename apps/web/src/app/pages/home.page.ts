@@ -102,12 +102,11 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
     .hero-video {
       position: absolute;
       z-index: -4;
-      inset: -3%;
-      width: 106%;
-      height: 106%;
+      inset: 0;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
       object-position: center center;
-      animation: cinematic-drift 34s ease-in-out infinite alternate;
     }
     .veil {
       position: absolute;
@@ -324,14 +323,6 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
       outline: 3px solid white;
       outline-offset: 3px;
     }
-    @keyframes cinematic-drift {
-      from {
-        transform: scale(1.03) translate3d(-0.3%, 0, 0);
-      }
-      to {
-        transform: scale(1.075) translate3d(0.5%, -0.35%, 0);
-      }
-    }
     @keyframes mist-drift {
       to {
         transform: translate3d(3%, -1%, 0);
@@ -434,7 +425,6 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
       html {
         scroll-behavior: auto;
       }
-      .hero-video,
       .mist,
       .veil-light,
       .mouse i {
