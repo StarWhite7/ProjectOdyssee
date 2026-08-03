@@ -1,7 +1,7 @@
 begin;
 -- Run with: supabase test db (after creating three Auth fixtures in a local stack).
 -- These assertions are documented executable probes for the critical policies.
-select plan(8);
+select plan(24);
 select has_table('public','games','games exists');
 select has_table('public','player_decisions','decisions exist');
 select col_is_unique('public','player_decisions',array['turn_id','player_id'],'one decision per player and turn');
@@ -10,5 +10,21 @@ select policies_are('public','player_decisions',array['decisions_insert_own','de
 select function_privs_are('public','complete_turn_resolution',array['uuid','jsonb'],'service_role',array['EXECUTE'],'completion is server-only');
 select function_privs_are('public','expire_due_turns',array[]::text[],'service_role',array['EXECUTE'],'timer expiration is server-only');
 select function_returns('public','claim_turn_resolution',array['uuid'],'boolean','claim reports lock ownership');
+select ok(has_table_privilege('service_role','public.story_turns','SELECT'),'service role reads story turns');
+select ok(has_table_privilege('service_role','public.player_decisions','SELECT'),'service role reads decisions');
+select ok(has_table_privilege('service_role','public.games','SELECT'),'service role reads games');
+select ok(has_table_privilege('service_role','public.world_states','SELECT'),'service role reads world state');
+select ok(has_table_privilege('service_role','public.characters','SELECT'),'service role reads characters');
+select ok(has_table_privilege('service_role','public.character_goals','SELECT'),'service role reads goals');
+select ok(has_table_privilege('service_role','public.memories','SELECT'),'service role reads memories');
+select ok(has_table_privilege('service_role','public.narrative_summaries','SELECT'),'service role reads summaries');
+select ok(has_table_privilege('service_role','public.story_turns','INSERT') and has_table_privilege('service_role','public.story_turns','UPDATE'),'service role writes story turns');
+select ok(has_table_privilege('service_role','public.player_decisions','INSERT') and has_table_privilege('service_role','public.player_decisions','UPDATE'),'service role writes decisions');
+select ok(has_table_privilege('service_role','public.memories','INSERT') and has_table_privilege('service_role','public.memories','UPDATE'),'service role writes memories');
+select ok(has_table_privilege('service_role','public.games','INSERT') and has_table_privilege('service_role','public.games','UPDATE'),'service role writes games');
+select ok(has_table_privilege('service_role','public.audit_events','INSERT') and has_table_privilege('service_role','public.audit_events','UPDATE'),'service role writes audit events');
+select ok(not has_table_privilege('service_role','public.audit_events','SELECT'),'service role does not read audit events');
+select ok(has_sequence_privilege('service_role','public.audit_events_id_seq','USAGE'),'service role uses audit identity sequence');
+select ok(has_sequence_privilege('service_role','public.audit_events_id_seq','SELECT'),'service role reads audit identity sequence state');
 select * from finish();
 rollback;

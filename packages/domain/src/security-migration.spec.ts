@@ -37,6 +37,13 @@ const submissionStatus = readFileSync(
   resolve(process.cwd(), '../../supabase/migrations/202608030003_turn_submission_status.sql'),
   'utf8',
 );
+const serviceRolePrivileges = readFileSync(
+  resolve(
+    process.cwd(),
+    '../../supabase/migrations/202608030004_service_role_gameplay_privileges.sql',
+  ),
+  'utf8',
+);
 describe('Supabase security migration', () => {
   it('enables RLS and protects private goals and decisions', () => {
     expect(initial.match(/enable row level security/g)?.length).toBeGreaterThanOrEqual(12);
@@ -85,5 +92,27 @@ describe('Supabase security migration', () => {
     expect(submissionStatus).not.toContain('action_text');
     expect(submissionStatus).not.toContain('intention_id');
     expect(submissionStatus).not.toContain('decision.source');
+  });
+  it('grants the server role only the gameplay table and identity-sequence privileges requested', () => {
+    expect(serviceRolePrivileges).toContain('grant usage on schema public to service_role');
+    expect(serviceRolePrivileges).toContain('grant select on table');
+    for (const table of [
+      'story_turns',
+      'player_decisions',
+      'games',
+      'world_states',
+      'characters',
+      'character_goals',
+      'memories',
+      'narrative_summaries',
+    ]) {
+      expect(serviceRolePrivileges).toContain(`public.${table}`);
+    }
+    expect(serviceRolePrivileges).toContain('grant insert,update on table');
+    expect(serviceRolePrivileges).toContain(
+      'grant usage,select on sequence public.audit_events_id_seq to service_role',
+    );
+    expect(serviceRolePrivileges).not.toMatch(/\b(delete|truncate)\b/);
+    expect(serviceRolePrivileges).not.toMatch(/\b(anon|authenticated)\b/);
   });
 });
