@@ -306,15 +306,18 @@ export class GamePage implements OnInit, OnDestroy {
   readonly selectedId = signal<string | null>(null);
   readonly selectedAction = signal('');
   readonly submitting = signal(false);
-  readonly submissionStatusLoading = signal(true);
+  readonly isSubmissionStatusRefreshing = signal(false);
   readonly submittedPlayerIds = signal<ReadonlySet<string>>(new Set());
   readonly now = signal(Date.now());
   freeAction = '';
-  private pollId: number | undefined;
+  private clockIntervalId: number | undefined;
+  private submissionPollId: number | undefined;
+  private submissionStatusTurnId: string | null = null;
+  private submissionStatusRequest = 0;
+  private destroyed = false;
   private timeoutSubmitting = false;
   private resolutionRetrying = false;
   private realtimeChannel: RealtimeChannel | null = null;
-  private pollTicks = 0;
   readonly turn = computed(() => this.game()?.turns.at(-1));
   readonly me = computed<Character | undefined>(
     () =>
@@ -335,11 +338,9 @@ export class GamePage implements OnInit, OnDestroy {
   );
   readonly previousResolution = computed(() => this.game()?.turns.at(-2)?.resolution ?? null);
   readonly partnerStatus = computed(() =>
-    this.submissionStatusLoading()
-      ? 'Synchronisation…'
-      : this.submittedPlayerIds().has(this.partner()?.ownerId ?? '')
-        ? 'Décision verrouillée'
-        : 'En réflexion…',
+    this.submittedPlayerIds().has(this.partner()?.ownerId ?? '')
+      ? 'Décision verrouillée'
+      : 'En réflexion…',
   );
   readonly secondsRemaining = computed(() => {
     const current = this.game();
@@ -381,22 +382,23 @@ export class GamePage implements OnInit, OnDestroy {
         )
         .subscribe();
     }
-    this.pollId = window.setInterval(() => {
+    this.clockIntervalId = window.setInterval(() => {
       this.now.set(Date.now());
-      this.pollTicks += 1;
-      if (this.pollTicks % 3 === 0) void this.reload(false);
       if (this.secondsRemaining() === 0) void this.submitTimeout();
     }, 1_000);
   }
   ngOnDestroy() {
-    if (this.pollId) clearInterval(this.pollId);
+    this.destroyed = true;
+    this.submissionStatusRequest += 1;
+    if (this.clockIntervalId) clearInterval(this.clockIntervalId);
+    this.stopSubmissionStatusPolling();
     if (this.realtimeChannel) void this.auth.supabase?.removeChannel(this.realtimeChannel);
   }
   async reload(showLoading = true) {
     if (showLoading) this.loading.set(true);
     try {
       this.game.set(await this.games.load(this.gameId));
-      await this.refreshSubmissionStatus();
+      await this.syncSubmissionStatusForCurrentTurn();
       this.error.set('');
       if (this.alreadySubmitted() && !this.resolutionRetrying) {
         this.resolutionRetrying = true;
@@ -404,7 +406,7 @@ export class GamePage implements OnInit, OnDestroy {
           const status = await this.games.resolveCurrentTurn(this.gameId);
           if (status === 'resolved' || status === 'already_resolved') {
             this.game.set(await this.games.load(this.gameId));
-            await this.refreshSubmissionStatus();
+            await this.syncSubmissionStatusForCurrentTurn();
           }
         } finally {
           this.resolutionRetrying = false;
@@ -416,19 +418,80 @@ export class GamePage implements OnInit, OnDestroy {
       this.loading.set(false);
     }
   }
-  private async refreshSubmissionStatus(): Promise<void> {
+  private async syncSubmissionStatusForCurrentTurn(): Promise<void> {
     const activeTurn = this.turn();
     if (!activeTurn) {
+      this.stopSubmissionStatusPolling();
+      this.submissionStatusTurnId = null;
       this.submittedPlayerIds.set(new Set());
-      this.submissionStatusLoading.set(false);
       return;
     }
-    this.submissionStatusLoading.set(true);
-    const statuses = await this.games.getTurnSubmissionStatus(this.gameId, activeTurn.id);
-    this.submittedPlayerIds.set(
-      new Set(statuses.filter((status) => status.submitted).map((status) => status.playerId)),
-    );
-    this.submissionStatusLoading.set(false);
+    if (this.submissionStatusTurnId !== activeTurn.id) {
+      this.stopSubmissionStatusPolling();
+      this.submissionStatusRequest += 1;
+      this.submissionStatusTurnId = activeTurn.id;
+      this.submittedPlayerIds.set(new Set());
+    }
+    await this.refreshSubmissionStatus(activeTurn.id);
+    this.startSubmissionStatusPolling(activeTurn.id);
+  }
+  private startSubmissionStatusPolling(turnId: string): void {
+    const partnerId = this.partner()?.ownerId;
+    if (
+      this.destroyed ||
+      this.submissionPollId !== undefined ||
+      this.submissionStatusTurnId !== turnId ||
+      (partnerId !== undefined && this.submittedPlayerIds().has(partnerId))
+    )
+      return;
+    this.submissionPollId = window.setInterval(() => void this.reload(false), 3_000);
+  }
+  private stopSubmissionStatusPolling(): void {
+    if (this.submissionPollId !== undefined) {
+      clearInterval(this.submissionPollId);
+      this.submissionPollId = undefined;
+    }
+  }
+  private async refreshSubmissionStatus(turnId: string): Promise<void> {
+    const partnerId = this.partner()?.ownerId;
+    if (
+      this.destroyed ||
+      this.submissionStatusTurnId !== turnId ||
+      (partnerId !== undefined && this.submittedPlayerIds().has(partnerId))
+    )
+      return;
+    const request = ++this.submissionStatusRequest;
+    this.isSubmissionStatusRefreshing.set(true);
+    try {
+      const statuses = await this.games.getTurnSubmissionStatus(this.gameId, turnId);
+      if (
+        this.destroyed ||
+        request !== this.submissionStatusRequest ||
+        turnId !== this.submissionStatusTurnId ||
+        turnId !== this.turn()?.id
+      )
+        return;
+      const submitted = new Set(
+        statuses.filter((status) => status.submitted).map((status) => status.playerId),
+      );
+      this.submittedPlayerIds.set(submitted);
+      const currentPartnerId = this.partner()?.ownerId;
+      if (currentPartnerId && submitted.has(currentPartnerId)) {
+        this.stopSubmissionStatusPolling();
+      }
+    } catch (error) {
+      if (
+        !this.destroyed &&
+        request === this.submissionStatusRequest &&
+        turnId === this.submissionStatusTurnId &&
+        turnId === this.turn()?.id
+      )
+        throw error;
+    } finally {
+      if (request === this.submissionStatusRequest) {
+        this.isSubmissionStatusRefreshing.set(false);
+      }
+    }
   }
   timerLabel() {
     const current = this.game();
@@ -457,6 +520,7 @@ export class GamePage implements OnInit, OnDestroy {
         this.freeAction.trim() ? 'freeform' : 'suggested',
         this.selectedId(),
       );
+      this.markCurrentPlayerSubmitted();
       await this.reload(false);
       this.freeAction = '';
       this.selectedAction.set('');
@@ -477,11 +541,16 @@ export class GamePage implements OnInit, OnDestroy {
         'timeout',
         null,
       );
+      this.markCurrentPlayerSubmitted();
       await this.reload(false);
     } catch {
       // The server-side expiration remains authoritative; another tab may have submitted first.
     } finally {
       this.timeoutSubmitting = false;
     }
+  }
+  private markCurrentPlayerSubmitted(): void {
+    const playerId = this.auth.user()?.id;
+    if (playerId) this.submittedPlayerIds.set(new Set([...this.submittedPlayerIds(), playerId]));
   }
 }

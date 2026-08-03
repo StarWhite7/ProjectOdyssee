@@ -60,10 +60,12 @@ test('keeps two real browser pages secret and resolves exactly once', async ({ c
   await page.getByRole('link', { name: 'Entrer dans l’aventure' }).click();
   await partner.reload();
   await partner.getByRole('link', { name: 'Entrer dans l’aventure' }).click();
+  await expect(partner.getByText('Synchronisation…')).toHaveCount(0);
   await page.getByLabel(/écrivez librement votre action/i).fill('ouvrir le coffre scellé de Sora');
   await page.getByRole('button', { name: 'Valider en secret' }).click();
   await expect(page.getByText('Décision verrouillée')).toBeVisible();
   await expect(partner.getByText('Décision verrouillée')).toBeVisible({ timeout: 5_000 });
+  await expect(partner.getByText('Synchronisation…')).toHaveCount(0);
   await expect(partner.getByText(/ouvrir le coffre scellé de Sora/i)).not.toBeVisible();
   await partner.reload();
   await expect(partner.getByText('Décision verrouillée')).toBeVisible();
