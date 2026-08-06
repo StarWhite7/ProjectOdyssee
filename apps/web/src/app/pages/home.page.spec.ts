@@ -36,4 +36,22 @@ describe('HomePage', () => {
     expect(element.querySelector('a[href="/tableau-de-bord"]')).toBeTruthy();
     expect(element.querySelector('a[href="#comment-jouer"]')).toBeTruthy();
   });
+
+  it('keeps the background video playing when reduced motion is enabled', () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: () => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    });
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause');
+    const fixture = TestBed.createComponent(HomePage);
+
+    fixture.detectChanges();
+
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
+    expect(pause).not.toHaveBeenCalled();
+  });
 });

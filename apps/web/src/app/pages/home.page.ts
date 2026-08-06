@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { Component, inject, PLATFORM_ID, ViewChild } from '@angular/core';
-import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
+import type { AfterViewInit, ElementRef } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AmbientAudioControlComponent } from '../shared/ambient-audio-control.component';
 import { HomeHeaderComponent } from '../shared/home-header.component';
@@ -436,28 +436,21 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
     }
   `,
 })
-export class HomePage implements AfterViewInit, OnDestroy {
+export class HomePage implements AfterViewInit {
   @ViewChild('backgroundVideo') private backgroundVideo?: ElementRef<HTMLVideoElement>;
   private readonly platformId = inject(PLATFORM_ID);
-  private motionPreference?: MediaQueryList;
 
   ngAfterViewInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;
-    this.motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
-    this.applyMotionPreference(this.motionPreference);
-    this.motionPreference.addEventListener('change', this.applyMotionPreference);
+    this.playBackgroundVideo();
   }
 
-  ngOnDestroy(): void {
-    this.motionPreference?.removeEventListener('change', this.applyMotionPreference);
-  }
-
-  private readonly applyMotionPreference = (
-    preference: MediaQueryList | MediaQueryListEvent,
-  ): void => {
+  private playBackgroundVideo(): void {
     const video = this.backgroundVideo?.nativeElement;
     if (!video) return;
-    if (preference.matches) video.pause();
-    else void video.play().catch(() => undefined);
-  };
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+    void video.play().catch(() => undefined);
+  }
 }
