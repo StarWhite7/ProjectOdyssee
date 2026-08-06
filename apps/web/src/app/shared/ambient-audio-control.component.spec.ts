@@ -2,6 +2,20 @@ import { TestBed } from '@angular/core/testing';
 import { AmbientAudioControlComponent } from './ambient-audio-control.component';
 
 describe('AmbientAudioControlComponent', () => {
+  beforeAll(() => {
+    if (globalThis.localStorage) return;
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        clear: () => store.clear(),
+        getItem: (key: string) => store.get(key) ?? null,
+        removeItem: (key: string) => store.delete(key),
+        setItem: (key: string, value: string) => store.set(key, value),
+      },
+    });
+  });
+
   beforeEach(async () => {
     localStorage.clear();
     await TestBed.configureTestingModule({

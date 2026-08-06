@@ -31,11 +31,12 @@ export class AuthService {
   }
 
   async signUp(email: string, password: string, displayName: string): Promise<string> {
+    const normalizedEmail = email.trim();
     if (this.client) {
       const { data, error } = await this.client.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
-        options: { data: { display_name: displayName } },
+        options: { data: { display_name: displayName.trim() } },
       });
       if (error) throw error;
       if (data.session) this.acceptSession(data.session);
@@ -44,9 +45,9 @@ export class AuthService {
         : 'Compte créé. Consultez votre email pour confirmer l’inscription.';
     }
     const user = {
-      id: this.demoId(email),
-      email,
-      displayName: displayName || email.split('@')[0]!,
+      id: this.demoId(normalizedEmail),
+      email: normalizedEmail,
+      displayName: this.profileName({ displayName, email: normalizedEmail }),
     };
     sessionStorage.setItem('odyssee_demo_user', JSON.stringify(user));
     this.currentUser.set(user);
@@ -54,13 +55,21 @@ export class AuthService {
   }
 
   async signIn(email: string, password: string): Promise<void> {
+    const normalizedEmail = email.trim();
     if (this.client) {
-      const { data, error } = await this.client.auth.signInWithPassword({ email, password });
+      const { data, error } = await this.client.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
       if (error) throw error;
       this.acceptSession(data.session);
       return;
     }
-    const user = { id: this.demoId(email), email, displayName: email.split('@')[0]! };
+    const user = {
+      id: this.demoId(normalizedEmail),
+      email: normalizedEmail,
+      displayName: this.profileName({ email: normalizedEmail }),
+    };
     sessionStorage.setItem('odyssee_demo_user', JSON.stringify(user));
     this.currentUser.set(user);
   }
@@ -85,12 +94,23 @@ export class AuthService {
   }
 
   private mapUser(user: User): AppUser {
+    const metadata = user.user_metadata;
     return {
       id: user.id,
       email: user.email ?? '',
-      displayName: String(
-        user.user_metadata['display_name'] ?? user.email?.split('@')[0] ?? 'Voyageur',
-      ),
+      displayName: this.profileName({
+        pseudo:
+          this.metadataString(metadata, 'pseudo') ?? this.metadataString(metadata, 'username'),
+        displayName:
+          this.metadataString(metadata, 'display_name') ??
+          this.metadataString(metadata, 'displayName') ??
+          this.metadataString(metadata, 'name') ??
+          this.metadataString(metadata, 'full_name') ??
+          this.metadataString(metadata, 'fullName'),
+        firstName:
+          this.metadataString(metadata, 'first_name') ?? this.metadataString(metadata, 'firstName'),
+        email: user.email ?? '',
+      }),
     };
   }
 
@@ -100,7 +120,12 @@ export class AuthService {
       const value = sessionStorage.getItem('odyssee_demo_user');
       if (!value) return null;
       const parsed = JSON.parse(value) as AppUser;
-      return parsed.id && parsed.email ? parsed : null;
+      return parsed.id && parsed.email
+        ? {
+            ...parsed,
+            displayName: this.profileName({ displayName: parsed.displayName, email: parsed.email }),
+          }
+        : null;
     } catch {
       return null;
     }
@@ -110,5 +135,24 @@ export class AuthService {
     let hash = 2166136261;
     for (const char of email.toLowerCase()) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
     return `demo-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+  }
+
+  private metadataString(metadata: User['user_metadata'], key: string): string | null {
+    const value = metadata[key];
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  private profileName(profile: {
+    pseudo?: string | null;
+    displayName?: string | null;
+    firstName?: string | null;
+    email?: string | null;
+  }): string {
+    const candidate =
+      profile.pseudo?.trim() ||
+      profile.displayName?.trim() ||
+      profile.firstName?.trim() ||
+      profile.email?.split('@')[0]?.trim();
+    return candidate || 'Voyageur';
   }
 }

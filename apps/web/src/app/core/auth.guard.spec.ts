@@ -5,7 +5,7 @@ import { firstValueFrom, isObservable } from 'rxjs';
 import type { ActivatedRouteSnapshot, RouterStateSnapshot, UrlTree } from '@angular/router';
 import type { Observable } from 'rxjs';
 import { AuthService } from './auth.service';
-import { authGuard } from './auth.guard';
+import { authGuard, guestGuard } from './auth.guard';
 
 describe('authGuard', () => {
   const ready = signal(false);
@@ -47,5 +47,28 @@ describe('authGuard', () => {
 
     const resolved = await firstValueFrom(result as Observable<boolean | UrlTree>);
     expect(router.serializeUrl(resolved as UrlTree)).toBe('/connexion');
+  });
+
+  it('redirects connected users away from the login route after restoration', async () => {
+    const router = TestBed.inject(Router);
+    const result = TestBed.runInInjectionContext(() =>
+      guestGuard({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot),
+    );
+
+    authenticated.set(true);
+    ready.set(true);
+
+    const resolved = await firstValueFrom(result as Observable<boolean | UrlTree>);
+    expect(router.serializeUrl(resolved as UrlTree)).toBe('/tableau-de-bord');
+  });
+
+  it('allows anonymous users to reach the login route', () => {
+    ready.set(true);
+
+    const result = TestBed.runInInjectionContext(() =>
+      guestGuard({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot),
+    );
+
+    expect(result).toBe(true);
   });
 });

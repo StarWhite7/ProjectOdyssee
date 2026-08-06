@@ -18,3 +18,18 @@ export const authGuard: CanActivateFn = () => {
     map(() => authorize()),
   );
 };
+
+export const guestGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  const authorize = () =>
+    auth.authenticated() ? router.createUrlTree(['/tableau-de-bord']) : true;
+
+  if (auth.ready()) return authorize();
+
+  return toObservable(auth.ready).pipe(
+    filter((ready) => ready),
+    take(1),
+    map(() => authorize()),
+  );
+};

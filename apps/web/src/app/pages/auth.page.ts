@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
@@ -11,34 +11,38 @@ import { AuthService } from '../core/auth.service';
     <main id="main" class="panel">
       <p class="eyebrow">{{ signup() ? 'Créer un profil' : 'Votre espace' }}</p>
       <h2>{{ signup() ? 'Commencez votre odyssée' : 'Retrouvez vos aventures' }}</h2>
-      <form [formGroup]="form" (ngSubmit)="submit()" class="grid">
-        @if (signup()) {
+      @if (!auth.ready() || auth.authenticated()) {
+        <p class="notice" aria-live="polite">Vérification de la session...</p>
+      } @else {
+        <form [formGroup]="form" (ngSubmit)="submit()" class="grid">
+          @if (signup()) {
+            <label class="field"
+              >Nom affiché<input formControlName="displayName" maxlength="80" autocomplete="name"
+            /></label>
+          }
           <label class="field"
-            >Nom affiché<input formControlName="displayName" maxlength="80" autocomplete="name"
+            >Adresse email<input type="email" formControlName="email" autocomplete="email"
           /></label>
-        }
-        <label class="field"
-          >Adresse email<input type="email" formControlName="email" autocomplete="email"
-        /></label>
-        <label class="field"
-          >Mot de passe<input
-            type="password"
-            formControlName="password"
-            [autocomplete]="signup() ? 'new-password' : 'current-password'"
-        /></label>
-        <button [disabled]="form.invalid || busy()">
-          {{ busy() ? 'Connexion…' : signup() ? 'Créer mon compte' : 'Continuer' }}
+          <label class="field"
+            >Mot de passe<input
+              type="password"
+              formControlName="password"
+              [autocomplete]="signup() ? 'new-password' : 'current-password'"
+          /></label>
+          <button [disabled]="form.invalid || busy()">
+            {{ busy() ? 'Connexion...' : signup() ? 'Créer mon compte' : 'Continuer' }}
+          </button>
+          <p class="notice" [class.error]="error()" aria-live="polite">{{ message() }}</p>
+        </form>
+        <button class="link" type="button" (click)="toggle()">
+          {{ signup() ? "J'ai déjà un compte" : 'Créer un compte' }}
         </button>
-        <p class="notice" [class.error]="error()" aria-live="polite">{{ message() }}</p>
-      </form>
-      <button class="link" type="button" (click)="toggle()">
-        {{ signup() ? 'J’ai déjà un compte' : 'Créer un compte' }}
-      </button>
-      <p class="muted">
-        Backend actif :
-        <strong>{{ auth.backend() === 'mock' ? 'Mock local' : 'Supabase sécurisé' }}</strong
-        >.
-      </p>
+        <p class="muted">
+          Backend actif :
+          <strong>{{ auth.backend() === 'mock' ? 'Mock local' : 'Supabase sécurisé' }}</strong
+          >.
+        </p>
+      }
     </main>
   </div>`,
   styles: [
@@ -69,6 +73,10 @@ import { AuthService } from '../core/auth.service';
 export class AuthPage {
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly authenticatedRedirect = effect(() => {
+    if (this.auth.ready() && this.auth.authenticated())
+      void this.router.navigateByUrl('/tableau-de-bord');
+  });
   readonly signup = signal(false);
   readonly busy = signal(false);
   readonly message = signal('');

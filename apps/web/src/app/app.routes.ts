@@ -1,9 +1,13 @@
 import type { Routes } from '@angular/router';
-import { authGuard } from './core/auth.guard';
+import { authGuard, guestGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   { path: '', loadComponent: () => import('./pages/home.page').then((m) => m.HomePage) },
-  { path: 'connexion', loadComponent: () => import('./pages/auth.page').then((m) => m.AuthPage) },
+  {
+    path: 'connexion',
+    canActivate: [guestGuard],
+    loadComponent: () => import('./pages/auth.page').then((m) => m.AuthPage),
+  },
   {
     path: 'tableau-de-bord',
     canActivate: [authGuard],
