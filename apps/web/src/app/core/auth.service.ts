@@ -1,6 +1,6 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { createClient } from '@supabase/supabase-js';
-import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
+import type { Provider, Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { isSupabaseConfigured, runtimeConfig } from './runtime-config';
 
 export type AppUser = { id: string; email: string; displayName: string };
@@ -80,17 +80,71 @@ export class AuthService {
     this.currentUser.set(null);
   }
 
+  async signInWithProvider(provider: Extract<Provider, 'google' | 'discord'>): Promise<void> {
+    if (!this.client) throw new Error('OAuth indisponible en mode démonstration.');
+    const { error } = await this.client.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${location.origin}/auth/callback`,
+      },
+    });
+    if (error) throw error;
+  }
+
   async resetPassword(email: string): Promise<void> {
     if (!this.client) return;
     const { error } = await this.client.auth.resetPasswordForEmail(email, {
-      redirectTo: `${location.origin}/connexion`,
+      redirectTo: `${location.origin}/mot-de-passe/reinitialiser`,
     });
     if (error) throw error;
+  }
+
+  async updatePassword(password: string): Promise<void> {
+    if (!this.client) throw new Error('Réinitialisation indisponible en mode démonstration.');
+    const { error } = await this.client.auth.updateUser({ password });
+    if (error) throw error;
+  }
+
+  async completeOAuthProfile(): Promise<void> {
+    if (!this.client) return;
+    const { data, error } = await this.client.auth.getUser();
+    if (error) throw error;
+    const user = data.user;
+    if (!user) throw new Error('Session OAuth introuvable.');
+    const displayName = this.profileName({
+      pseudo:
+        this.metadataString(user.user_metadata, 'preferred_username') ??
+        this.metadataString(user.user_metadata, 'user_name') ??
+        this.metadataString(user.user_metadata, 'username'),
+      displayName:
+        this.metadataString(user.user_metadata, 'display_name') ??
+        this.metadataString(user.user_metadata, 'displayName') ??
+        this.metadataString(user.user_metadata, 'full_name') ??
+        this.metadataString(user.user_metadata, 'fullName') ??
+        this.metadataString(user.user_metadata, 'name'),
+      email: user.email ?? '',
+    });
+    await this.updateProfileDisplayName(user.id, displayName);
+    this.currentUser.set(
+      this.mapUser({
+        ...user,
+        user_metadata: { ...user.user_metadata, display_name: displayName },
+      }),
+    );
   }
 
   private acceptSession(session: Session | null): void {
     this.currentUser.set(session?.user ? this.mapUser(session.user) : null);
     this.readyState.set(true);
+  }
+
+  private async updateProfileDisplayName(id: string, displayName: string): Promise<void> {
+    if (!this.client) return;
+    const { error } = await this.client
+      .from('profiles')
+      .update({ display_name: displayName })
+      .eq('id', id);
+    if (error) throw error;
   }
 
   private mapUser(user: User): AppUser {

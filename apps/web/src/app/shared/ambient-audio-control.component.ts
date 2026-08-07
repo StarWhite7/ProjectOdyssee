@@ -214,9 +214,10 @@ const DEFAULT_VOLUME = 0.2;
         transform: scale(0.9);
       }
     }
-    @media (max-width: 540px) {
+    @media (max-width: 900px) {
       :host {
         right: 1rem;
+        top: auto;
         bottom: 1rem;
       }
       :host.sidebar-placement {

@@ -9,6 +9,22 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/auth.page').then((m) => m.AuthPage),
   },
   {
+    path: 'auth/callback',
+    loadComponent: () => import('./pages/auth-callback.page').then((m) => m.AuthCallbackPage),
+  },
+  {
+    path: 'mot-de-passe/reinitialiser',
+    loadComponent: () => import('./pages/password-reset.page').then((m) => m.PasswordResetPage),
+  },
+  {
+    path: 'conditions-utilisation',
+    loadComponent: () => import('./pages/legal.page').then((m) => m.LegalPage),
+  },
+  {
+    path: 'confidentialite',
+    loadComponent: () => import('./pages/legal.page').then((m) => m.LegalPage),
+  },
+  {
     path: 'tableau-de-bord',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/dashboard.page').then((m) => m.DashboardPage),
