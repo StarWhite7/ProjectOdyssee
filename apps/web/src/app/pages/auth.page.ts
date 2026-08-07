@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, type WritableSignal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
@@ -115,25 +115,19 @@ const PRIVACY_PATH = '/confidentialite';
                     type="button"
                     class="social-button google"
                     aria-label="Continuer avec Google"
-                    [disabled]="googleBusy()"
-                    (click)="signInWithProvider('google')"
+                    [disabled]="socialBusy()"
+                    (click)="continueWithGoogle()"
                   >
-                    G
+                    <img src="/icons/auth/google.svg" alt="" aria-hidden="true" />
                   </button>
                   <button
                     type="button"
                     class="social-button discord"
                     aria-label="Continuer avec Discord"
-                    [disabled]="discordBusy()"
-                    (click)="signInWithProvider('discord')"
+                    [disabled]="socialBusy()"
+                    (click)="continueWithDiscord()"
                   >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M19.6 6.2a15.5 15.5 0 0 0-4-1.3l-.5 1.1a13.1 13.1 0 0 0-6.2 0l-.5-1.1a15.5 15.5 0 0 0-4 1.3C2.4 9.2 1.8 12.1 2 16.1a15.8 15.8 0 0 0 4.9 2.5l1-1.6c-.6-.2-1.2-.5-1.7-.8a11.8 11.8 0 0 0 11.6 0c-.5.3-1.1.6-1.7.8l1 1.6a15.8 15.8 0 0 0 4.9-2.5c.3-4-.4-6.9-2.4-9.9Z"
-                      />
-                      <circle cx="8.8" cy="12.7" r="1.15" />
-                      <circle cx="15.2" cy="12.7" r="1.15" />
-                    </svg>
+                    <img src="/icons/auth/discord.svg" alt="" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -256,25 +250,19 @@ const PRIVACY_PATH = '/confidentialite';
                     type="button"
                     class="social-button google"
                     aria-label="Continuer avec Google"
-                    [disabled]="googleBusy()"
-                    (click)="signInWithProvider('google')"
+                    [disabled]="socialBusy()"
+                    (click)="continueWithGoogle()"
                   >
-                    G
+                    <img src="/icons/auth/google.svg" alt="" aria-hidden="true" />
                   </button>
                   <button
                     type="button"
                     class="social-button discord"
                     aria-label="Continuer avec Discord"
-                    [disabled]="discordBusy()"
-                    (click)="signInWithProvider('discord')"
+                    [disabled]="socialBusy()"
+                    (click)="continueWithDiscord()"
                   >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M19.6 6.2a15.5 15.5 0 0 0-4-1.3l-.5 1.1a13.1 13.1 0 0 0-6.2 0l-.5-1.1a15.5 15.5 0 0 0-4 1.3C2.4 9.2 1.8 12.1 2 16.1a15.8 15.8 0 0 0 4.9 2.5l1-1.6c-.6-.2-1.2-.5-1.7-.8a11.8 11.8 0 0 0 11.6 0c-.5.3-1.1.6-1.7.8l1 1.6a15.8 15.8 0 0 0 4.9-2.5c.3-4-.4-6.9-2.4-9.9Z"
-                      />
-                      <circle cx="8.8" cy="12.7" r="1.15" />
-                      <circle cx="15.2" cy="12.7" r="1.15" />
-                    </svg>
+                    <img src="/icons/auth/discord.svg" alt="" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -593,15 +581,13 @@ const PRIVACY_PATH = '/confidentialite';
       font-weight: 800;
     }
     .social-button.google {
-      color: #69a7ff;
-      font-size: 1.15rem;
+      background: rgba(255, 255, 255, 0.08);
     }
-    .social-button.discord svg {
-      width: 1.45rem;
-      height: 1.45rem;
-      color: #c9c7ff;
-      fill: currentColor;
-      stroke: none;
+    .social-button img {
+      display: block;
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
     }
     .auth-divider {
       display: grid;
@@ -763,6 +749,7 @@ export class AuthPage {
   readonly registerError = signal(false);
   readonly showLoginPassword = signal(false);
   readonly showRegisterPassword = signal(false);
+  readonly socialBusy = computed(() => this.googleBusy() || this.discordBusy());
   readonly toggle = (value: boolean) => !value;
   readonly loginForm = new FormGroup({
     email: new FormControl('', {
@@ -876,8 +863,21 @@ export class AuthPage {
     }
   }
 
-  async signInWithProvider(provider: 'google' | 'discord'): Promise<void> {
-    const busy = provider === 'google' ? this.googleBusy : this.discordBusy;
+  async continueWithGoogle(): Promise<void> {
+    await this.continueWithProvider('Google', this.googleBusy, () => this.auth.signInWithGoogle());
+  }
+
+  async continueWithDiscord(): Promise<void> {
+    await this.continueWithProvider('Discord', this.discordBusy, () =>
+      this.auth.signInWithDiscord(),
+    );
+  }
+
+  private async continueWithProvider(
+    providerLabel: 'Google' | 'Discord',
+    busy: WritableSignal<boolean>,
+    signIn: () => Promise<void>,
+  ): Promise<void> {
     if (busy()) return;
     busy.set(true);
     this.loginError.set(false);
@@ -885,9 +885,10 @@ export class AuthPage {
     this.loginMessage.set('');
     this.registerMessage.set('');
     try {
-      await this.auth.signInWithProvider(provider);
+      await signIn();
     } catch (error) {
-      const message = this.authErrorMessage(error);
+      console.error(`OAuth ${providerLabel} failed`, error);
+      const message = this.oauthErrorMessage(error, providerLabel);
       this.loginError.set(true);
       this.registerError.set(true);
       this.loginMessage.set(message);
@@ -915,5 +916,18 @@ export class AuthPage {
     if (raw.includes('oauth') || raw.includes('provider'))
       return 'Ce fournisseur de connexion doit être configuré.';
     return 'Connexion impossible pour le moment.';
+  }
+
+  private oauthErrorMessage(error: unknown, providerLabel: 'Google' | 'Discord'): string {
+    const raw = error instanceof Error ? error.message.toLowerCase() : '';
+    if (
+      raw.includes('unsupported provider') ||
+      raw.includes('provider is not enabled') ||
+      raw.includes('not enabled') ||
+      raw.includes('provider')
+    ) {
+      return `La connexion avec ${providerLabel} n'est pas encore disponible.`;
+    }
+    return `La connexion avec ${providerLabel} est impossible pour le moment.`;
   }
 }

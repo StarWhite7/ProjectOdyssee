@@ -14,7 +14,8 @@ describe('AuthPage', () => {
     signIn: vi.fn<() => Promise<void>>(),
     signUp: vi.fn<() => Promise<string>>(),
     resetPassword: vi.fn<() => Promise<void>>(),
-    signInWithProvider: vi.fn<() => Promise<void>>(),
+    signInWithGoogle: vi.fn<() => Promise<void>>(),
+    signInWithDiscord: vi.fn<() => Promise<void>>(),
   };
 
   beforeEach(async () => {
@@ -23,7 +24,8 @@ describe('AuthPage', () => {
     auth.signIn.mockResolvedValue();
     auth.signUp.mockResolvedValue('Compte créé.');
     auth.resetPassword.mockResolvedValue();
-    auth.signInWithProvider.mockResolvedValue();
+    auth.signInWithGoogle.mockResolvedValue();
+    auth.signInWithDiscord.mockResolvedValue();
     await TestBed.configureTestingModule({
       imports: [AuthPage],
       providers: [provideRouter([]), { provide: AuthService, useValue: auth }],
@@ -48,6 +50,9 @@ describe('AuthPage', () => {
     expect(element.textContent).toContain('Créer un compte');
     expect(element.querySelectorAll('[aria-label="Continuer avec Google"]')).toHaveLength(2);
     expect(element.querySelectorAll('[aria-label="Continuer avec Discord"]')).toHaveLength(2);
+    expect(element.querySelectorAll('img[src="/icons/auth/google.svg"]')).toHaveLength(2);
+    expect(element.querySelectorAll('img[src="/icons/auth/discord.svg"]')).toHaveLength(2);
+    expect(element.textContent?.toLowerCase()).not.toContain('apple');
   });
 
   it('validates the login form before submitting', async () => {
@@ -128,10 +133,23 @@ describe('AuthPage', () => {
   it('starts OAuth with Google and Discord through the auth service', async () => {
     const { fixture } = render();
 
-    await fixture.componentInstance.signInWithProvider('google');
-    await fixture.componentInstance.signInWithProvider('discord');
+    await fixture.componentInstance.continueWithGoogle();
+    await fixture.componentInstance.continueWithDiscord();
 
-    expect(auth.signInWithProvider).toHaveBeenCalledWith('google');
-    expect(auth.signInWithProvider).toHaveBeenCalledWith('discord');
+    expect(auth.signInWithGoogle).toHaveBeenCalledOnce();
+    expect(auth.signInWithDiscord).toHaveBeenCalledOnce();
+  });
+
+  it('maps unsupported provider errors without displaying raw JSON', async () => {
+    const { fixture, element } = render();
+    auth.signInWithGoogle.mockRejectedValueOnce(
+      new Error('Unsupported provider: provider is not enabled'),
+    );
+
+    await fixture.componentInstance.continueWithGoogle();
+    fixture.detectChanges();
+
+    expect(element.textContent).toContain("La connexion avec Google n'est pas encore disponible.");
+    expect(element.textContent).not.toContain('Unsupported provider');
   });
 });

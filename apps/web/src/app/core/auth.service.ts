@@ -1,6 +1,6 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { createClient } from '@supabase/supabase-js';
-import type { Provider, Session, SupabaseClient, User } from '@supabase/supabase-js';
+import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { isSupabaseConfigured, runtimeConfig } from './runtime-config';
 
 export type AppUser = { id: string; email: string; displayName: string };
@@ -80,12 +80,23 @@ export class AuthService {
     this.currentUser.set(null);
   }
 
-  async signInWithProvider(provider: Extract<Provider, 'google' | 'discord'>): Promise<void> {
+  async signInWithGoogle(): Promise<void> {
     if (!this.client) throw new Error('OAuth indisponible en mode démonstration.');
     const { error } = await this.client.auth.signInWithOAuth({
-      provider,
+      provider: 'google',
       options: {
-        redirectTo: `${location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) throw error;
+  }
+
+  async signInWithDiscord(): Promise<void> {
+    if (!this.client) throw new Error('OAuth indisponible en mode démonstration.');
+    const { error } = await this.client.auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
     if (error) throw error;
@@ -111,6 +122,16 @@ export class AuthService {
     if (error) throw error;
     const user = data.user;
     if (!user) throw new Error('Session OAuth introuvable.');
+    const existingDisplayName = await this.profileDisplayName(user.id);
+    if (existingDisplayName) {
+      this.currentUser.set(
+        this.mapUser({
+          ...user,
+          user_metadata: { ...user.user_metadata, display_name: existingDisplayName },
+        }),
+      );
+      return;
+    }
     const displayName = this.profileName({
       pseudo:
         this.metadataString(user.user_metadata, 'preferred_username') ??
@@ -131,6 +152,18 @@ export class AuthService {
         user_metadata: { ...user.user_metadata, display_name: displayName },
       }),
     );
+  }
+
+  private async profileDisplayName(id: string): Promise<string | null> {
+    if (!this.client) return null;
+    const { data, error } = await this.client
+      .from('profiles')
+      .select('display_name')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    const displayName = data?.display_name;
+    return typeof displayName === 'string' && displayName.trim() ? displayName.trim() : null;
   }
 
   private acceptSession(session: Session | null): void {
