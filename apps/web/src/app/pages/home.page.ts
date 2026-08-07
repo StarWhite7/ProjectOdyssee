@@ -1,28 +1,13 @@
-import { isPlatformBrowser } from '@angular/common';
-import { Component, inject, PLATFORM_ID, ViewChild } from '@angular/core';
-import type { AfterViewInit, ElementRef } from '@angular/core';
+import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AmbientAudioControlComponent } from '../shared/ambient-audio-control.component';
 import { HomeHeaderComponent } from '../shared/home-header.component';
 
 @Component({
   selector: 'app-home',
-  imports: [RouterLink, HomeHeaderComponent, AmbientAudioControlComponent],
+  imports: [RouterLink, HomeHeaderComponent],
   template: `
     <main id="main" class="home">
       <section id="accueil" class="hero" aria-labelledby="hero-title">
-        <video
-          #backgroundVideo
-          class="hero-video"
-          autoplay
-          muted
-          loop
-          playsinline
-          preload="metadata"
-          aria-hidden="true"
-        >
-          <source src="/video/odyssee-background.mp4" type="video/mp4" />
-        </video>
         <div class="veil veil-left"></div>
         <div class="veil veil-light"></div>
         <div class="veil veil-edges"></div>
@@ -53,7 +38,6 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
           <span>Découvrir</span>
           <span class="chevron" aria-hidden="true"></span>
         </a>
-        <app-ambient-audio-control />
       </section>
 
       <section id="comment-jouer" class="story-section" aria-labelledby="how-title">
@@ -87,7 +71,7 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
     :host {
       display: block;
       color: #17203e;
-      background: #eef1fb;
+      background: transparent;
     }
     .home {
       overflow: hidden;
@@ -97,20 +81,11 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
       min-height: 100svh;
       overflow: hidden;
       isolation: isolate;
-      background: linear-gradient(135deg, #dce5f5, #8799c5);
-    }
-    .hero-video {
-      position: absolute;
-      z-index: -4;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center center;
+      background: transparent;
     }
     .veil {
       position: absolute;
-      z-index: -3;
+      z-index: 0;
       inset: 0;
       pointer-events: none;
     }
@@ -137,7 +112,7 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
     }
     .mist {
       position: absolute;
-      z-index: -2;
+      z-index: 1;
       inset: 50% -15% -15%;
       opacity: 0.16;
       filter: blur(22px);
@@ -350,9 +325,6 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
         padding-top: clamp(10rem, 25svh, 14rem);
         margin-left: clamp(1.5rem, 6vw, 4rem);
       }
-      .hero-video {
-        object-position: 58% center;
-      }
     }
     @media (max-width: 780px) {
       .hero-content {
@@ -366,9 +338,6 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
           rgba(230, 236, 249, 0.62),
           rgba(239, 241, 250, 0.28) 80%
         );
-      }
-      .hero-video {
-        object-position: 62% center;
       }
       .steps {
         grid-template-columns: 1fr;
@@ -436,21 +405,4 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
     }
   `,
 })
-export class HomePage implements AfterViewInit {
-  @ViewChild('backgroundVideo') private backgroundVideo?: ElementRef<HTMLVideoElement>;
-  private readonly platformId = inject(PLATFORM_ID);
-
-  ngAfterViewInit(): void {
-    if (!isPlatformBrowser(this.platformId)) return;
-    this.playBackgroundVideo();
-  }
-
-  private playBackgroundVideo(): void {
-    const video = this.backgroundVideo?.nativeElement;
-    if (!video) return;
-    video.muted = true;
-    video.defaultMuted = true;
-    video.playsInline = true;
-    void video.play().catch(() => undefined);
-  }
-}
+export class HomePage {}

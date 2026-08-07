@@ -1,4 +1,4 @@
-import { Component, ViewChild, signal } from '@angular/core';
+import { Component, ViewChild, input, signal } from '@angular/core';
 import type { ElementRef, OnDestroy } from '@angular/core';
 
 const ENABLED_KEY = 'odyssee-ambient-audio-enabled';
@@ -7,6 +7,9 @@ const DEFAULT_VOLUME = 0.2;
 
 @Component({
   selector: 'app-ambient-audio-control',
+  host: {
+    '[class.sidebar-placement]': "placement() === 'sidebar'",
+  },
   template: `
     <audio #audio loop preload="none" src="/audio/odyssee-ambient.mp3"></audio>
     <div class="audio-panel" [class.playing]="playing()">
@@ -41,10 +44,16 @@ const DEFAULT_VOLUME = 0.2;
   `,
   styles: `
     :host {
-      position: absolute;
+      position: fixed;
       right: clamp(1rem, 3vw, 3rem);
       bottom: clamp(1rem, 3vw, 2.3rem);
-      z-index: 12;
+      z-index: 40;
+    }
+    :host.sidebar-placement {
+      right: auto;
+      left: clamp(1.2rem, 2vw, 1.9rem);
+      bottom: clamp(1rem, 3vh, 2.5rem);
+      width: clamp(13rem, 14.5vw, 14.2rem);
     }
     audio {
       display: none;
@@ -67,6 +76,17 @@ const DEFAULT_VOLUME = 0.2;
         background 0.2s ease,
         transform 0.2s ease;
     }
+    :host.sidebar-placement .audio-panel {
+      min-height: clamp(6.2rem, 12vh, 8.2rem);
+      padding: clamp(0.8rem, 1.2vh, 1rem);
+      border-radius: 0.85rem;
+      align-items: stretch;
+      justify-content: center;
+      flex-direction: column;
+      gap: clamp(0.5rem, 1vh, 0.8rem);
+      background: rgba(20, 30, 70, 0.35);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
     .audio-panel:hover,
     .audio-panel:focus-within {
       transform: translateY(-1px);
@@ -82,6 +102,17 @@ const DEFAULT_VOLUME = 0.2;
       font-weight: inherit;
       white-space: nowrap;
     }
+    :host.sidebar-placement .audio-control {
+      width: 100%;
+      min-height: auto;
+      padding: 0;
+      justify-content: flex-start;
+      gap: 0.65rem;
+      line-height: 1.35;
+    }
+    :host.sidebar-placement .audio-label {
+      white-space: normal;
+    }
     .audio-panel.playing .audio-icon {
       animation: pulse 2.2s ease-in-out infinite;
     }
@@ -96,10 +127,24 @@ const DEFAULT_VOLUME = 0.2;
       height: 1.3rem;
       background: rgba(255, 255, 255, 0.3);
     }
+    :host.sidebar-placement .divider {
+      display: none;
+    }
     .volume-control {
       display: flex;
       align-items: center;
       gap: 0.55rem;
+    }
+    :host.sidebar-placement .volume-control {
+      width: 100%;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.55rem 0.8rem;
+    }
+    :host.sidebar-placement .volume-control::before {
+      content: 'Volume';
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.72rem;
     }
     input[type='range'] {
       width: 5.5rem;
@@ -115,6 +160,10 @@ const DEFAULT_VOLUME = 0.2;
         #d8d2ff 0 var(--volume),
         rgba(255, 255, 255, 0.28) var(--volume) 100%
       );
+    }
+    :host.sidebar-placement input[type='range'] {
+      width: 100%;
+      grid-column: 1 / -1;
     }
     input[type='range']::-webkit-slider-thumb {
       width: 0.75rem;
@@ -140,6 +189,13 @@ const DEFAULT_VOLUME = 0.2;
       font-variant-numeric: tabular-nums;
       text-align: right;
     }
+    :host.sidebar-placement output {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -163,6 +219,11 @@ const DEFAULT_VOLUME = 0.2;
         right: 1rem;
         bottom: 1rem;
       }
+      :host.sidebar-placement {
+        right: 1rem;
+        left: auto;
+        width: auto;
+      }
       .audio-label,
       output {
         position: absolute;
@@ -174,6 +235,22 @@ const DEFAULT_VOLUME = 0.2;
       .audio-panel {
         gap: 0.4rem;
         padding-right: 0.65rem;
+      }
+      :host.sidebar-placement .audio-panel {
+        min-height: 2.65rem;
+        padding: 0.35rem 0.75rem 0.35rem 0.45rem;
+        border-radius: 999px;
+        align-items: center;
+        flex-direction: row;
+      }
+      :host.sidebar-placement .divider {
+        display: block;
+      }
+      :host.sidebar-placement .volume-control {
+        display: flex;
+      }
+      :host.sidebar-placement .volume-control::before {
+        content: none;
       }
       input[type='range'] {
         width: 4.2rem;
@@ -189,6 +266,7 @@ const DEFAULT_VOLUME = 0.2;
   `,
 })
 export class AmbientAudioControlComponent implements OnDestroy {
+  readonly placement = input<'corner' | 'sidebar'>('corner');
   @ViewChild('audio') private audioRef?: ElementRef<HTMLAudioElement>;
   readonly playing = signal(false);
   readonly volumePercent = signal(Math.round(this.savedVolume() * 100));
