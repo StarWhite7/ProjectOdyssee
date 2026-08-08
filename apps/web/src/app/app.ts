@@ -46,6 +46,7 @@ export class App implements AfterViewInit {
     const path = url.split(/[?#]/, 1)[0];
     return [
       '/dashboard',
+      '/mes-aventures',
       '/aventures',
       '/invitations',
       '/archives',

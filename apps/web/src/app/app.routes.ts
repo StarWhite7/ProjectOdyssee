@@ -36,10 +36,11 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/dashboard.page').then((m) => m.DashboardPage),
       },
       {
-        path: 'aventures',
+        path: 'mes-aventures',
         canActivate: [authGuard],
         loadComponent: () => import('./pages/adventures.page').then((m) => m.AdventuresPage),
       },
+      { path: 'aventures', redirectTo: 'mes-aventures', pathMatch: 'full' },
       {
         path: 'invitations',
         canActivate: [authGuard],
