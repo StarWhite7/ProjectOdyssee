@@ -51,7 +51,11 @@ describe('DashboardPage', () => {
   }
 
   it('renders the real empty state without dashboard media duplication or fake adventures', async () => {
-    const { element } = await render();
+    const { fixture, element } = await render();
+
+    expect(fixture.componentInstance.currentAdventureImage()).toBe(
+      '/images/dashboard/DernierAventure.png',
+    );
 
     expect(element.querySelectorAll('h1')).toHaveLength(1);
     expect(element.querySelector('h1')?.textContent).toContain('Bienvenue, Aventurier.');
@@ -62,6 +66,16 @@ describe('DashboardPage', () => {
     expect(element.textContent).toContain("Vous n'avez pas encore commencé d'aventure.");
     expect(element.querySelectorAll('app-recent-adventure-card')).toHaveLength(0);
     expect(element.querySelectorAll('.recent-card-placeholder')).toHaveLength(3);
+    for (const card of element.querySelectorAll('.recent-card-placeholder')) {
+      expect(card.getAttribute('data-image-src')).toBe('/images/dashboard/DernierAventure.png');
+    }
+    const currentCard = element.querySelector('.empty-current-card') as HTMLElement;
+    expect(currentCard.getAttribute('data-image-src')).toBe(
+      '/images/dashboard/DernierAventure.png',
+    );
+    expect(currentCard.style.getPropertyValue('--card-image')).toBe(
+      'url("/images/dashboard/DernierAventure.png")',
+    );
   });
 
   it('renders real user adventures and navigates with the selected adventure id', async () => {
@@ -73,6 +87,9 @@ describe('DashboardPage', () => {
     const { fixture, element } = await render();
     const router = TestBed.inject(Router);
     const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    expect(fixture.componentInstance.currentAdventureImage()).toBe(
+      '/images/dashboard/AventureEnCours.png',
+    );
 
     expect(element.textContent).toContain('Votre odyssée continue.');
     expect(element.textContent).toContain('La Traversée réelle');
@@ -80,6 +97,16 @@ describe('DashboardPage', () => {
     expect(element.textContent).toContain('En cours');
     expect(element.querySelectorAll('app-recent-adventure-card')).toHaveLength(2);
     expect(element.querySelectorAll('.recent-card-placeholder')).toHaveLength(1);
+    const currentCard = element.querySelector('.current-section .current-card') as HTMLElement;
+    expect(currentCard.getAttribute('data-image-src')).toBe(
+      '/images/dashboard/AventureEnCours.png',
+    );
+    expect(currentCard.style.getPropertyValue('--card-image')).toBe(
+      'url("/images/dashboard/AventureEnCours.png")',
+    );
+    for (const card of element.querySelectorAll('app-recent-adventure-card .recent-card')) {
+      expect(card.getAttribute('data-image-src')).toBe('/images/dashboard/AventureEnCours.png');
+    }
     expect(element.textContent).toContain('Le Pont réel');
     expect(element.textContent).toContain('Le Relais réel');
 
@@ -112,6 +139,9 @@ describe('DashboardPage', () => {
 
     expect(element.querySelectorAll('app-recent-adventure-card')).toHaveLength(3);
     expect(element.querySelectorAll('.recent-card-placeholder')).toHaveLength(0);
+    for (const card of element.querySelectorAll('app-recent-adventure-card .recent-card')) {
+      expect(card.getAttribute('data-image-src')).toBe('/images/dashboard/AventureEnCours.png');
+    }
     expect(element.textContent).toContain('Aventure active');
     expect(element.textContent).toContain('Première récente');
     expect(element.textContent).toContain('Deuxième récente');

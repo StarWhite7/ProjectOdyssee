@@ -20,11 +20,11 @@ type DashboardAdventureView = {
 };
 
 const DASHBOARD_IMAGES = {
-  current: '/images/dashboard/adventure-current.webp',
-  create: '/images/dashboard/create-adventure.webp',
-  recent1: '/images/dashboard/adventure-1.webp',
-  recent2: '/images/dashboard/adventure-2.webp',
-  recent3: '/images/dashboard/adventure-3.webp',
+  current: '/images/dashboard/AventureEnCours.png',
+  create: '/images/dashboard/NouvelleAventure.png',
+  recent1: '/images/dashboard/DernierAventure.png',
+  recent2: '/images/dashboard/DernierAventure.png',
+  recent3: '/images/dashboard/DernierAventure.png',
 } as const;
 
 @Component({
@@ -353,7 +353,12 @@ export class DashboardHeaderComponent {
 @Component({
   selector: 'app-recent-adventure-card',
   template: `
-    <article class="recent-card" data-dashboard-image [attr.data-image-src]="adventure().image">
+    <article
+      class="recent-card"
+      data-dashboard-image
+      [attr.data-image-src]="adventure().image"
+      [style.--card-image]="backgroundImage(adventure().image)"
+    >
       <span class="recent-icon" aria-hidden="true">
         @switch (adventure().icon) {
           @case ('tree') {
@@ -495,6 +500,10 @@ export class DashboardHeaderComponent {
 export class RecentAdventureCardComponent {
   readonly adventure = input.required<DashboardAdventureView>();
   readonly continueAdventure = output<void>();
+
+  protected backgroundImage(path: string): string {
+    return `url("${path}")`;
+  }
 }
 
 @Component({
@@ -546,48 +555,51 @@ export class RecentAdventureCardComponent {
                   </button>
                 </div>
               </article>
-            } @else if (activeAdventure(); as adventure) {
+            } @else {
               <article
                 class="current-card"
+                [class.current-card-state]="!activeAdventure()"
+                [class.empty-current-card]="!activeAdventure()"
                 data-dashboard-image
-                [attr.data-image-src]="adventure.image"
+                [attr.data-image-src]="currentAdventureImage()"
+                [style.--card-image]="backgroundImage(currentAdventureImage())"
               >
-                <div class="current-copy">
-                  <h3>{{ adventure.title }}</h3>
-                  <p class="chapter">
-                    <span aria-hidden="true">★</span>
-                    {{ adventure.chapterLabel }} <b>·</b> {{ adventure.statusLabel }}
-                  </p>
-                  <p class="description">{{ adventure.activityLabel }}</p>
-                  <button class="primary-action" type="button" (click)="openAdventure(adventure)">
-                    Continuer l'aventure
-                    <span aria-hidden="true">▶</span>
-                  </button>
-                </div>
-                <div class="current-meta" aria-label="Informations de l'aventure">
-                  <strong>{{ adventure.modeLabel }}</strong>
-                  <span>{{ adventure.statusLabel }}</span>
-                </div>
-              </article>
-            } @else {
-              <article class="current-card current-card-state empty-current-card">
-                <span class="state-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="8" />
-                    <path d="m12 3 2 7 7 2-7 2-2 7-2-7-7-2 7-2Z" />
-                  </svg>
-                </span>
-                <div class="current-copy">
-                  <h3>Aucune aventure en cours</h3>
-                  <p class="description">
-                    Vous n'avez pas encore commencé d'aventure.<br />
-                    Lancez-vous dans votre première odyssée !
-                  </p>
-                  <button class="primary-action" type="button" (click)="startNewAdventure()">
-                    Commencer une aventure
-                    <span aria-hidden="true">▶</span>
-                  </button>
-                </div>
+                @if (activeAdventure(); as adventure) {
+                  <div class="current-copy">
+                    <h3>{{ adventure.title }}</h3>
+                    <p class="chapter">
+                      <span aria-hidden="true">★</span>
+                      {{ adventure.chapterLabel }} <b>·</b> {{ adventure.statusLabel }}
+                    </p>
+                    <p class="description">{{ adventure.activityLabel }}</p>
+                    <button class="primary-action" type="button" (click)="openAdventure(adventure)">
+                      Continuer l'aventure
+                      <span aria-hidden="true">▶</span>
+                    </button>
+                  </div>
+                  <div class="current-meta" aria-label="Informations de l'aventure">
+                    <strong>{{ adventure.modeLabel }}</strong>
+                    <span>{{ adventure.statusLabel }}</span>
+                  </div>
+                } @else {
+                  <span class="state-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="8" />
+                      <path d="m12 3 2 7 7 2-7 2-2 7-2-7-7-2 7-2Z" />
+                    </svg>
+                  </span>
+                  <div class="current-copy">
+                    <h3>Aucune aventure en cours</h3>
+                    <p class="description">
+                      Vous n'avez pas encore commencé d'aventure.<br />
+                      Lancez-vous dans votre première odyssée !
+                    </p>
+                    <button class="primary-action" type="button" (click)="startNewAdventure()">
+                      Commencer une aventure
+                      <span aria-hidden="true">▶</span>
+                    </button>
+                  </div>
+                }
               </article>
             }
           </section>
@@ -597,6 +609,7 @@ export class RecentAdventureCardComponent {
               class="create-card"
               data-dashboard-image
               [attr.data-image-src]="imagePaths.create"
+              [style.--card-image]="backgroundImage(imagePaths.create)"
             >
               <div class="create-copy">
                 <p class="section-label" id="create-title">Créer une nouvelle aventure</p>
@@ -646,7 +659,14 @@ export class RecentAdventureCardComponent {
                   />
                 }
                 @for (item of recentPlaceholderSlots(); track item) {
-                  <article class="recent-card-placeholder">
+                  <article
+                    class="recent-card-placeholder"
+                    data-dashboard-image
+                    [attr.data-image-src]="imagePaths.recent1"
+                    [style.background-image]="recentPlaceholderBackground()"
+                    [style.background-size]="'cover'"
+                    [style.background-position]="'center'"
+                  >
                     <span class="recent-placeholder-icon" aria-hidden="true"></span>
                     <div>
                       <h3>{{ hasAnyAdventure() ? 'Aucune autre aventure' : 'Aucune aventure' }}</h3>
@@ -677,7 +697,6 @@ export class RecentAdventureCardComponent {
       height: 100svh;
       min-height: 100svh;
       overflow: hidden;
-      background: transparent;
     }
     .dashboard-overlay {
       position: absolute;
@@ -780,7 +799,7 @@ export class RecentAdventureCardComponent {
       align-items: center;
       gap: 1.5rem;
       color: white;
-      background:
+      background-image:
         linear-gradient(
           90deg,
           rgba(9, 21, 56, 0.9),
@@ -794,6 +813,7 @@ export class RecentAdventureCardComponent {
         linear-gradient(135deg, #1c315f, #6f819e);
       background-size: cover;
       background-position: center;
+      background-repeat: no-repeat;
     }
     .current-copy {
       min-width: 0;
@@ -801,10 +821,9 @@ export class RecentAdventureCardComponent {
     .current-card-state {
       grid-template-columns: auto minmax(0, 1fr);
       justify-content: start;
-      background:
+      background-image:
         linear-gradient(90deg, rgba(10, 21, 54, 0.86), rgba(24, 35, 75, 0.48)),
-        radial-gradient(ellipse at 78% 40%, rgba(126, 142, 185, 0.54), transparent 44%),
-        rgba(16, 28, 64, 0.62);
+        var(--card-image, none);
     }
     .state-icon {
       width: clamp(3rem, 5.4vw, 4.8rem);
@@ -1157,6 +1176,9 @@ export class DashboardPage implements OnInit {
     this.games.games().map((game, index) => this.toDashboardAdventure(game, index)),
   );
   readonly activeAdventure = computed(() => this.pickActiveAdventure(this.dashboardAdventures()));
+  readonly currentAdventureImage = computed(() =>
+    this.activeAdventure() ? DASHBOARD_IMAGES.current : DASHBOARD_IMAGES.recent1,
+  );
   readonly recentAdventures = computed(() => {
     const activeId = this.activeAdventure()?.id ?? null;
     return this.dashboardAdventures()
@@ -1255,7 +1277,7 @@ export class DashboardPage implements OnInit {
       chapterLabel: game.turnNumber > 0 ? `Tour ${game.turnNumber}` : 'Préparation',
       activityLabel: this.activityLabel(game.updatedAt),
       modeLabel: game.playMode === 'realtime' ? 'Temps réel' : 'Asynchrone',
-      image: this.fallbackImage(index),
+      image: DASHBOARD_IMAGES.current,
       icon: this.fallbackIcon(index),
       routeSection: this.routeSection(game.status),
       updatedAtTime: Number.isFinite(updatedAtTime) ? updatedAtTime : 0,
@@ -1318,9 +1340,12 @@ export class DashboardPage implements OnInit {
     return 'Dernière activité : à l’instant';
   }
 
-  private fallbackImage(index: number): string {
-    const images = [DASHBOARD_IMAGES.current, DASHBOARD_IMAGES.recent1, DASHBOARD_IMAGES.recent2];
-    return images[index % images.length];
+  protected backgroundImage(path: string): string {
+    return `url("${path}")`;
+  }
+
+  protected recentPlaceholderBackground(): string {
+    return `linear-gradient(90deg, rgba(10, 20, 50, 0.72), rgba(18, 30, 66, 0.42)), ${this.backgroundImage(DASHBOARD_IMAGES.recent1)}`;
   }
 
   private fallbackIcon(index: number): DashboardAdventureView['icon'] {
