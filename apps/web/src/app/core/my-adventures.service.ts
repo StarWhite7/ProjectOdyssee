@@ -1,5 +1,13 @@
 import { inject, Injectable } from '@angular/core';
 import { AuthService } from './auth.service';
+import {
+  GAME_STATUSES,
+  gameStatusLabel,
+  getGameRouteSection,
+  isActiveGameStatus,
+  isCompletedGameStatus,
+  isPendingGameStatus,
+} from './game-status';
 import { GameService } from './game.service';
 import type { GameSummary } from './game.service';
 
@@ -131,15 +139,15 @@ export class MyAdventuresService {
   }
 
   isActiveAdventure(status: string): boolean {
-    return ['active', 'in_progress', 'started', 'ready', 'paused'].includes(status);
+    return isActiveGameStatus(status) || status === GAME_STATUSES.READY;
   }
 
   isPendingAdventure(status: string): boolean {
-    return ['waiting', 'character_creation'].includes(status);
+    return isPendingGameStatus(status);
   }
 
   isCompletedAdventure(status: string): boolean {
-    return ['completed', 'finished', 'archived', 'abandoned'].includes(status);
+    return isCompletedGameStatus(status);
   }
 
   private fromSummary(game: GameSummary, userId: string): MyAdventureViewModel {
@@ -196,11 +204,8 @@ export class MyAdventuresService {
   }
 
   private routeFor(id: string, status: string, group: MyAdventureGroup): unknown[] {
-    if (group === 'completed') return ['/aventure', id, 'journal'];
-    if (status === 'active' || status === 'in_progress' || status === 'started' || status === 'paused')
-      return ['/aventure', id, 'jouer'];
-    if (status === 'character_creation') return ['/aventure', id, 'personnage'];
-    return ['/aventure', id, 'salon'];
+    void group;
+    return ['/aventure', id, getGameRouteSection(status)];
   }
 
   private companionFromPlayers(
@@ -221,28 +226,7 @@ export class MyAdventuresService {
   }
 
   private statusLabel(status: string): string {
-    switch (status) {
-      case 'waiting':
-        return 'En attente';
-      case 'character_creation':
-        return 'Préparation';
-      case 'ready':
-        return 'Prête';
-      case 'active':
-      case 'in_progress':
-      case 'started':
-        return 'En cours';
-      case 'paused':
-        return 'En pause';
-      case 'completed':
-      case 'finished':
-      case 'archived':
-        return 'Terminée';
-      case 'abandoned':
-        return 'Abandonnée';
-      default:
-        return status || 'Aventure';
-    }
+    return gameStatusLabel(status);
   }
 
   private compare(a: MyAdventureViewModel, b: MyAdventureViewModel, sort: MyAdventureSort): number {

@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { characterInputSchema, worldDefinitionSchema } from '@odyssee/domain';
 import type { Character, WorldDefinition } from '@odyssee/domain';
 import { AuthService } from './auth.service';
+import { GAME_STATUSES } from './game-status';
 
 export type GameSummary = {
   id: string;
@@ -108,7 +109,7 @@ export class GameService {
       inviteCode: this.inviteCode(),
       ownerId: user.id,
       playerIds: [user.id],
-      status: 'waiting',
+      status: GAME_STATUSES.WAITING,
       playMode: draft.playMode,
       timerSeconds: draft.timerSeconds,
       turnNumber: 0,
@@ -137,11 +138,11 @@ export class GameService {
     if (!game) throw new Error('Code invalide ou expiré.');
     if (!game.playerIds.includes(user.id) && game.playerIds.length >= 2)
       throw new Error('Cette aventure est complète.');
-    if (game.status !== 'waiting' && !game.playerIds.includes(user.id))
+    if (game.status !== GAME_STATUSES.WAITING && !game.playerIds.includes(user.id))
       throw new Error('Cette aventure a déjà commencé.');
     this.patchLocal(game.id, {
       playerIds: [...new Set([...game.playerIds, user.id])],
-      status: 'character_creation',
+      status: GAME_STATUSES.CHARACTER_CREATION,
     });
     return game.id;
   }
@@ -185,18 +186,69 @@ export class GameService {
         throw new Error('Partie introuvable.');
       return game;
     }
-    const { data: game, error } = await client.from('games').select('*').eq('id', id).single();
+    const { data: game, error } = await client
+      .from('games')
+      .select('title,invite_code,owner_id,status,play_mode,timer_seconds,turn_number,updated_at')
+      .eq('id', id)
+      .single();
     if (error) throw error;
     const [world, characters, goals, turns, memories, players] = await Promise.all([
-      client.from('world_states').select('*').eq('game_id', id).single(),
-      client.from('characters').select('*').eq('game_id', id),
-      client.from('character_goals').select('*').eq('game_id', id),
+      client.from('world_states').select('definition').eq('game_id', id).single(),
+      client
+        .from('characters')
+        .select(
+          `
+            id,
+            game_id,
+            owner_id,
+            name,
+            pronouns,
+            age_description,
+            appearance,
+            personality_traits,
+            values_list,
+            fears,
+            strengths,
+            weaknesses,
+            backstory,
+            freeform_description,
+            current_emotional_state,
+            avatar_url,
+            created_at,
+            updated_at
+          `,
+        )
+        .eq('game_id', id),
+      client
+        .from('character_goals')
+        .select('id,character_id,visibility,description')
+        .eq('game_id', id),
       client
         .from('story_turns')
-        .select('*,player_decisions(*)')
+        .select(
+          `
+            id,
+            turn_number,
+            scene_text,
+            location,
+            resolution_text,
+            proposed_intentions,
+            created_at,
+            player_decisions (
+              player_id,
+              character_id,
+              action_text,
+              source
+            )
+          `,
+        )
         .eq('game_id', id)
         .order('turn_number'),
-      client.from('memories').select('*').eq('game_id', id).order('created_at'),
+      client
+        .from('memories')
+        .select('id,type,title,summary,importance,created_at')
+        .eq('game_id', id)
+        .order('created_at'),
       client.from('game_players').select('player_id').eq('game_id', id),
     ]);
     if (
@@ -322,7 +374,10 @@ export class GameService {
     const characters = [...game.characters.filter((item) => item.ownerId !== user.id), character];
     const ready =
       characters.length === 2 || (game.playerIds.length === 1 && game.id === 'demo-adventure');
-    this.patchLocal(gameId, { characters, status: ready ? 'ready' : 'character_creation' });
+    this.patchLocal(gameId, {
+      characters,
+      status: ready ? GAME_STATUSES.READY : GAME_STATUSES.CHARACTER_CREATION,
+    });
     if (ready) this.ensureOpening(gameId);
   }
 

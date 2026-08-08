@@ -48,4 +48,27 @@ describe('shared Edge Function CORS', () => {
       expect(source).not.toContain("'Access-Control-Allow-Origin': '*'");
     },
   );
+
+  it('does not expose raw internal errors from targeted Edge Functions', () => {
+    for (const functionName of ['start-game', 'expire-turns']) {
+      const source = readFileSync(
+        resolve(process.cwd(), `supabase/functions/${functionName}/index.ts`),
+        'utf8',
+      );
+
+      expect(source).toContain('console.error(error)');
+      expect(source).not.toContain('error.message');
+    }
+  });
+
+  it('keeps obvious start-game reads scoped to required columns', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'supabase/functions/start-game/index.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain(".select('status,play_mode,timer_seconds')");
+    expect(source).toContain(".select('id')");
+    expect(source).not.toContain(".select('*')");
+  });
 });

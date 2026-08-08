@@ -13,7 +13,10 @@ Deno.serve(async (request) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const admin = createClient(url, serviceKey);
   const { data: due, error } = await admin.rpc('expire_due_turns');
-  if (error) return response({ error: error.message }, 500);
+  if (error) {
+    console.error(error);
+    return response({ error: 'expire_turns_failed' }, 500);
+  }
   const results = await Promise.allSettled(
     ((due ?? []) as Array<{ turn_id: string }>).map((row) =>
       fetch(`${url}/functions/v1/resolve-turn`, {

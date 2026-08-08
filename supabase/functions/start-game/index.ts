@@ -25,14 +25,14 @@ Deno.serve(async (request) => {
     if (visibilityError || !visible) return response({ error: 'forbidden' }, 403);
     const { data: game, error: gameError } = await admin
       .from('games')
-      .select('*')
+      .select('status,play_mode,timer_seconds')
       .eq('id', gameId)
       .single();
     if (gameError) throw gameError;
     if (game.status === 'active') return response({ status: 'already_started' });
     const { data: characters, error: charactersError } = await admin
       .from('characters')
-      .select('*')
+      .select('id')
       .eq('game_id', gameId)
       .eq('is_final', true);
     if (charactersError) throw charactersError;
@@ -103,10 +103,8 @@ Deno.serve(async (request) => {
     await admin.from('audit_events').insert({ game_id: gameId, event_type: 'game.started' });
     return response({ status: 'started' });
   } catch (error) {
-    return response(
-      { error: 'start_failed', message: error instanceof Error ? error.message : 'unknown' },
-      500,
-    );
+    console.error(error);
+    return response({ error: 'start_failed', message: 'Unable to start game.' }, 500);
   }
 });
 function response(body: unknown, status = 200) {

@@ -1,5 +1,5 @@
 import type { OnInit } from '@angular/core';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, isDevMode, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
@@ -14,7 +14,17 @@ import type { LocalAdventure } from '../core/game.service';
       ><a class="button secondary" [routerLink]="['/aventure', gameId, 'jouer']">Retour au récit</a>
     </header>
     <main id="main">
-      @if (game(); as current) {
+      @if (loading()) {
+        <section class="panel state-panel" aria-live="polite">
+          <p>Chargement de l'aventure...</p>
+        </section>
+      } @else if (error()) {
+        <section class="panel state-panel error-panel" aria-live="assertive">
+          <h2>Impossible de charger cette aventure pour le moment.</h2>
+          <p>{{ error() }}</p>
+          <button type="button" class="button" (click)="retry()">Réessayer</button>
+        </section>
+      } @else if (game(); as current) {
         <p class="eyebrow">{{ current.title }}</p>
         <h2>{{ title() }}</h2>
         @switch (section) {
@@ -100,6 +110,15 @@ import type { LocalAdventure } from '../core/game.service';
       main {
         padding: 3vh 0 5rem;
       }
+      .state-panel {
+        max-width: 820px;
+      }
+      .state-panel h2 {
+        margin-top: 0;
+      }
+      .error-panel {
+        border-color: rgba(255, 134, 134, 0.36);
+      }
       .timeline {
         display: grid;
         gap: 1rem;
@@ -149,6 +168,8 @@ export class DetailsPage implements OnInit {
   readonly gameId = this.route.snapshot.paramMap.get('id')!;
   readonly section = this.route.snapshot.paramMap.get('section')!;
   readonly game = signal<LocalAdventure | null>(null);
+  readonly loading = signal(true);
+  readonly error = signal<string | null>(null);
   readonly title = signal(
     (
       {
@@ -159,10 +180,26 @@ export class DetailsPage implements OnInit {
       } as Record<string, string>
     )[this.section] ?? 'Aventure',
   );
-  async ngOnInit() {
-    this.game.set(await this.games.load(this.gameId));
+  async ngOnInit(): Promise<void> {
+    await this.load();
+  }
+  async retry(): Promise<void> {
+    await this.load();
   }
   reverse<T>(items: T[]) {
     return [...items].reverse();
+  }
+  private async load(): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    try {
+      this.game.set(await this.games.load(this.gameId));
+    } catch (error) {
+      if (isDevMode()) console.error('Failed to load adventure details', error);
+      this.game.set(null);
+      this.error.set('Réessayez dans quelques instants.');
+    } finally {
+      this.loading.set(false);
+    }
   }
 }

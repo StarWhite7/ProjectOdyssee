@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { AuthService } from './auth.service';
+import { COMPLETED_GAME_STATUSES, GAME_STATUSES, isCompletedGameStatus } from './game-status';
 import { GameService } from './game.service';
 import type { GameSummary } from './game.service';
 
@@ -52,7 +53,9 @@ type SupabaseTurnRow = {
   game_id?: unknown;
 };
 
-const ARCHIVE_STATUSES = ['completed', 'finished', 'archived'] as const;
+const ARCHIVE_STATUSES = COMPLETED_GAME_STATUSES.filter(
+  (status) => status !== GAME_STATUSES.ABANDONED,
+);
 const ARCHIVE_COVER = '/images/dashboard/DernierAventure.png';
 
 @Injectable({ providedIn: 'root' })
@@ -216,7 +219,7 @@ export class ArchivesService {
   }
 
   private isArchiveStatus(status: string): boolean {
-    return (ARCHIVE_STATUSES as readonly string[]).includes(status);
+    return isCompletedGameStatus(status) && status !== GAME_STATUSES.ABANDONED;
   }
 
   private compare(a: ArchiveViewModel, b: ArchiveViewModel, sort: ArchiveSort): number {

@@ -153,6 +153,19 @@ describe('DashboardPage', () => {
     expect(element.textContent).not.toContain('Quatrième récente');
   });
 
+  it('opens a completed dashboard adventure on the journal route', async () => {
+    games.set([
+      summary('completed-adventure', 'Aventure terminée', 'completed', 3, '2026-08-04T10:00:00.000Z'),
+    ]);
+    const { fixture } = await render();
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    await fixture.componentInstance.openAdventure(fixture.componentInstance.recentAdventures()[0]);
+
+    expect(navigate).toHaveBeenCalledWith(['/aventure', 'completed-adventure', 'journal']);
+  });
+
   it('shows a distinct error state and lets the user retry loading', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     gameService.refresh.mockRejectedValueOnce(new Error('network failure'));

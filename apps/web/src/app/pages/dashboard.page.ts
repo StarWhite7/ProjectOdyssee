@@ -3,6 +3,12 @@ import type { OnDestroy, OnInit } from '@angular/core';
 import { Component, computed, inject, input, isDevMode, output, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../core/auth.service';
+import {
+  gameStatusLabel,
+  getGameRouteSection,
+  isActiveGameStatus,
+  isCompletedGameStatus,
+} from '../core/game-status';
 import { GameService } from '../core/game.service';
 import type { GameSummary } from '../core/game.service';
 import type { DashboardNotificationState } from '../shared/dashboard-notification';
@@ -22,7 +28,7 @@ type DashboardAdventureView = {
   modeLabel: string;
   image: string;
   icon: 'compass' | 'tree' | 'spiral';
-  routeSection: 'salon' | 'personnage' | 'jouer';
+  routeSection: ReturnType<typeof getGameRouteSection>;
   updatedAtTime: number;
 };
 
@@ -1218,50 +1224,23 @@ export class DashboardPage implements OnInit, OnDestroy {
       id: game.id,
       title,
       status: game.status,
-      statusLabel: this.statusLabel(game.status),
+      statusLabel: gameStatusLabel(game.status),
       chapterLabel: game.turnNumber > 0 ? `Tour ${game.turnNumber}` : 'Préparation',
       activityLabel: this.activityLabel(game.updatedAt),
       modeLabel: game.playMode === 'realtime' ? 'Temps réel' : 'Asynchrone',
       image: DASHBOARD_IMAGES.current,
       icon: this.fallbackIcon(index),
-      routeSection: this.routeSection(game.status),
+      routeSection: getGameRouteSection(game.status),
       updatedAtTime: Number.isFinite(updatedAtTime) ? updatedAtTime : 0,
     };
   }
 
-  private routeSection(status: string): DashboardAdventureView['routeSection'] {
-    if (status === 'active') return 'jouer';
-    if (status === 'character_creation') return 'personnage';
-    return 'salon';
-  }
-
-  private statusLabel(status: string): string {
-    switch (status) {
-      case 'waiting':
-        return 'En attente';
-      case 'character_creation':
-        return 'Personnages';
-      case 'ready':
-        return 'Prête';
-      case 'active':
-      case 'in_progress':
-        return 'En cours';
-      case 'paused':
-        return 'En pause';
-      case 'completed':
-      case 'finished':
-        return 'Terminée';
-      default:
-        return status.trim() || 'Statut indisponible';
-    }
-  }
-
   private isActiveStatus(status: string): boolean {
-    return ['active', 'in_progress'].includes(status);
+    return isActiveGameStatus(status);
   }
 
   private isCompletedStatus(status: string): boolean {
-    return ['completed', 'finished', 'archived'].includes(status);
+    return isCompletedGameStatus(status);
   }
 
   private activityLabel(value: string): string {
