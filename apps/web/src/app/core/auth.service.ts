@@ -116,6 +116,14 @@ export class AuthService {
     if (error) throw error;
   }
 
+  setCurrentDisplayName(displayName: string): void {
+    const user = this.currentUser();
+    if (!user) return;
+    const updated = { ...user, displayName: this.profileName({ displayName, email: user.email }) };
+    sessionStorage.setItem('odyssee_demo_user', JSON.stringify(updated));
+    this.currentUser.set(updated);
+  }
+
   async completeOAuthProfile(): Promise<void> {
     if (!this.client) return;
     const { data, error } = await this.client.auth.getUser();

@@ -1,9 +1,6 @@
-import { Component, ViewChild, input, signal } from '@angular/core';
-import type { ElementRef, OnDestroy } from '@angular/core';
-
-const ENABLED_KEY = 'odyssee-ambient-audio-enabled';
-const VOLUME_KEY = 'odyssee-ambient-audio-volume';
-const DEFAULT_VOLUME = 0.2;
+import { Component, ViewChild, computed, effect, inject, input } from '@angular/core';
+import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
+import { AmbientAudioService } from './ambient-audio.service';
 
 @Component({
   selector: 'app-ambient-audio-control',
@@ -12,16 +9,16 @@ const DEFAULT_VOLUME = 0.2;
   },
   template: `
     <audio #audio loop preload="none" src="/audio/odyssee-ambient.mp3"></audio>
-    <div class="audio-panel" [class.playing]="playing()">
+    <div class="audio-panel" [class.playing]="audioState.playing()">
       <button
         type="button"
         class="audio-control"
-        [attr.aria-pressed]="playing()"
+        [attr.aria-pressed]="audioState.playing()"
         [attr.aria-label]="label()"
         (click)="toggle()"
       >
         <span class="audio-icon" aria-hidden="true">{{
-          volumePercent() === 0 ? '×' : playing() ? '♫' : '♪'
+          volumePercent() === 0 ? 'x' : audioState.playing() ? '♫' : '♪'
         }}</span>
         <span class="audio-label">{{ label() }}</span>
       </button>
@@ -266,38 +263,60 @@ const DEFAULT_VOLUME = 0.2;
     }
   `,
 })
-export class AmbientAudioControlComponent implements OnDestroy {
+export class AmbientAudioControlComponent implements AfterViewInit, OnDestroy {
   readonly placement = input<'corner' | 'sidebar'>('corner');
+  protected readonly audioState = inject(AmbientAudioService);
   @ViewChild('audio') private audioRef?: ElementRef<HTMLAudioElement>;
-  readonly playing = signal(false);
-  readonly volumePercent = signal(Math.round(this.savedVolume() * 100));
-  readonly label = signal(this.preferredEnabled() ? 'Reprendre la musique' : 'Activer la musique');
+  readonly volumePercent = this.audioState.volumePercent;
+  readonly label = computed(() => {
+    if (this.audioState.unavailable()) return 'Musique indisponible';
+    if (this.audioState.playing()) return 'Mettre la musique en pause';
+    return this.audioState.preferredEnabled() ? 'Reprendre la musique' : 'Activer la musique';
+  });
   private fadeTimer?: ReturnType<typeof setInterval>;
+
+  constructor() {
+    effect(() => {
+      const preferred = this.audioState.preferredEnabled();
+      const audio = this.audioRef?.nativeElement;
+      if (!audio) return;
+      if (!preferred && this.audioState.playing()) {
+        this.stopFade();
+        audio.pause();
+      }
+      if (preferred && !this.audioState.playing()) void this.start(audio);
+    });
+  }
+
+  ngAfterViewInit(): void {
+    const audio = this.audioRef?.nativeElement;
+    if (!audio || !this.audioState.playing()) return;
+    audio.volume = this.volumePercent() / 100;
+  }
 
   async toggle(): Promise<void> {
     const audio = this.audioRef?.nativeElement;
     if (!audio) return;
-    if (this.playing()) {
+    if (this.audioState.playing()) {
       this.stopFade();
       audio.pause();
-      this.playing.set(false);
-      this.label.set('Reprendre la musique');
-      localStorage.setItem(ENABLED_KEY, 'false');
+      this.audioState.setPlaying(false);
       return;
     }
 
+    this.audioState.setPreferredEnabled(true);
+    await this.start(audio);
+  }
+
+  private async start(audio: HTMLAudioElement): Promise<void> {
     const targetVolume = this.volumePercent() / 100;
     audio.volume = 0;
     try {
       await audio.play();
-      this.playing.set(true);
-      this.label.set('Mettre la musique en pause');
-      localStorage.setItem(ENABLED_KEY, 'true');
-      localStorage.setItem(VOLUME_KEY, String(targetVolume));
+      this.audioState.setPlaying(true);
       this.fadeTo(audio, targetVolume);
     } catch {
-      this.playing.set(false);
-      this.label.set('Musique indisponible');
+      this.audioState.setUnavailable();
     }
   }
 
@@ -307,10 +326,8 @@ export class AmbientAudioControlComponent implements OnDestroy {
 
   setVolume(event: Event): void {
     const requested = Number((event.target as HTMLInputElement).value);
-    const percentage = Math.min(100, Math.max(0, Number.isFinite(requested) ? requested : 0));
+    const percentage = this.audioState.setVolumePercent(requested);
     const volume = percentage / 100;
-    this.volumePercent.set(percentage);
-    localStorage.setItem(VOLUME_KEY, String(volume));
     const audio = this.audioRef?.nativeElement;
     if (audio) {
       this.stopFade();
@@ -329,24 +346,5 @@ export class AmbientAudioControlComponent implements OnDestroy {
   private stopFade(): void {
     if (this.fadeTimer) clearInterval(this.fadeTimer);
     this.fadeTimer = undefined;
-  }
-
-  private preferredEnabled(): boolean {
-    try {
-      return localStorage.getItem(ENABLED_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  }
-
-  private savedVolume(): number {
-    try {
-      const stored = localStorage.getItem(VOLUME_KEY);
-      if (stored === null) return DEFAULT_VOLUME;
-      const saved = Number(stored);
-      return Number.isFinite(saved) && saved >= 0 && saved <= 1 ? saved : DEFAULT_VOLUME;
-    } catch {
-      return DEFAULT_VOLUME;
-    }
   }
 }

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { AmbientAudioService } from './ambient-audio.service';
 import { AmbientAudioControlComponent } from './ambient-audio-control.component';
 
 describe('AmbientAudioControlComponent', () => {
@@ -45,7 +46,7 @@ describe('AmbientAudioControlComponent', () => {
     fixture.detectChanges();
 
     expect(play).toHaveBeenCalledOnce();
-    expect(fixture.componentInstance.playing()).toBe(true);
+    expect(TestBed.inject(AmbientAudioService).playing()).toBe(true);
     expect(localStorage.getItem('odyssee-ambient-audio-enabled')).toBe('true');
     fixture.destroy();
   });
@@ -58,7 +59,7 @@ describe('AmbientAudioControlComponent', () => {
 
     await fixture.componentInstance.toggle();
 
-    expect(fixture.componentInstance.playing()).toBe(false);
+    expect(TestBed.inject(AmbientAudioService).playing()).toBe(false);
     expect(fixture.componentInstance.label()).toBe('Musique indisponible');
   });
 
