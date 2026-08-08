@@ -12,7 +12,7 @@ import { DeleteGameDialogComponent } from '../shared/delete-game-dialog.componen
   imports: [RouterLink, DeleteGameDialogComponent],
   template: `<div class="shell">
     <header class="topbar">
-      <a class="brand" routerLink="/tableau-de-bord">ODYSSÉE</a>
+      <a class="brand" routerLink="/tableau-de-bord">Nerys</a>
       <div class="lobby-actions">
         <span class="pill">Salon privé</span>
         <app-delete-game-dialog [gameId]="gameId" (deleted)="onGameDeleted()" />

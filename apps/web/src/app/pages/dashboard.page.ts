@@ -93,6 +93,9 @@ const DASHBOARD_IMAGES = {
       justify-content: center;
       color: #fff8ea;
     }
+    .sidebar-brand app-odyssee-brand {
+      --brand-logo-width: clamp(19rem, 20vw, 24rem);
+    }
     .sidebar-nav {
       width: calc(100% - 0.5rem);
       max-width: 14.25rem;

@@ -23,8 +23,8 @@ const PRIVACY_PATH = '/confidentialite';
             <path d="M32 2v60M2 32h60M11 11l42 42M53 11 11 53" />
             <path d="m32 8 5 19 19 5-19 5-5 19-5-19-19-5 19-5Z" />
           </svg>
-          <p>Projet</p>
-          <h1 id="auth-title">Odyssée</h1>
+          <p>Nerys</p>
+          <h1 id="auth-title">Nerys</h1>
           <span>Écrivez votre légende</span>
         </header>
 

@@ -9,7 +9,7 @@ import { AuthService } from '../core/auth.service';
   template: `
     <main id="main" class="reset-page" aria-labelledby="reset-title">
       <section class="reset-card">
-        <a class="brand-link" routerLink="/">Projet Odyssée</a>
+        <a class="brand-link" routerLink="/">Nerys</a>
         <h1 id="reset-title">Nouveau mot de passe</h1>
         @if (!auth.ready()) {
           <p class="notice" aria-live="polite">Vérification de votre lien...</p>

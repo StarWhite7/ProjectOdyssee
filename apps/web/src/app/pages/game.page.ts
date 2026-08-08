@@ -15,7 +15,7 @@ import { DeleteGameDialogComponent } from '../shared/delete-game-dialog.componen
   imports: [FormsModule, RouterLink, DeleteGameDialogComponent],
   template: `<div class="shell">
     <header class="topbar">
-      <a class="brand" routerLink="/tableau-de-bord">ODYSSÉE</a>
+      <a class="brand" routerLink="/tableau-de-bord">Nerys</a>
       <nav>
         <a [routerLink]="['/aventure', gameId, 'journal']">Journal</a
         ><a [routerLink]="['/aventure', gameId, 'souvenirs']">Souvenirs</a

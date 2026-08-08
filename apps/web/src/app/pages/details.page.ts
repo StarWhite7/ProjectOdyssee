@@ -10,7 +10,7 @@ import type { LocalAdventure } from '../core/game.service';
   imports: [RouterLink],
   template: `<div class="shell">
     <header class="topbar">
-      <a class="brand" [routerLink]="['/aventure', gameId, 'jouer']">ODYSSÉE</a
+      <a class="brand" [routerLink]="['/aventure', gameId, 'jouer']">Nerys</a
       ><a class="button secondary" [routerLink]="['/aventure', gameId, 'jouer']">Retour au récit</a>
     </header>
     <main id="main">

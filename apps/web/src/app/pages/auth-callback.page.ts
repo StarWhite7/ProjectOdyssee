@@ -7,7 +7,7 @@ import { AuthService } from '../core/auth.service';
   template: `
     <main id="main" class="callback-page" aria-labelledby="callback-title">
       <section class="callback-card" aria-live="polite">
-        <p class="eyebrow">Projet Odyssée</p>
+        <p class="eyebrow">Nerys</p>
         <h1 id="callback-title">Connexion en cours</h1>
         <p>{{ message() }}</p>
       </section>

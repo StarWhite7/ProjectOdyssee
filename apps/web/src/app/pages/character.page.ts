@@ -10,7 +10,7 @@ import { AuthService } from '../core/auth.service';
   imports: [ReactiveFormsModule, RouterLink],
   template: `<div class="shell">
     <header class="topbar">
-      <a class="brand" [routerLink]="['/aventure', gameId, 'salon']">ODYSSÉE</a
+      <a class="brand" [routerLink]="['/aventure', gameId, 'salon']">Nerys</a
       ><span class="pill">Création du personnage</span>
     </header>
     <main id="main">

@@ -19,7 +19,7 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
           <h1 id="hero-title">Votre histoire.<br />Votre <em>odyssée.</em></h1>
           <div class="ornament" aria-hidden="true"><span></span></div>
           <p>
-            Projet Odyssée est une expérience narrative<br class="desktop-break" />
+            Nerys est une expérience narrative<br class="desktop-break" />
             coopérative où chaque choix façonne votre aventure.<br class="desktop-break" />
             Partez à deux, écrivez votre légende.
           </p>
@@ -61,7 +61,7 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
           </article>
         </div>
         <p id="a-propos" class="about">
-          Odyssée laisse les joueurs écrire leur histoire. L’IA relie leurs choix et veille à la
+          Nerys laisse les joueurs écrire leur histoire. L’IA relie leurs choix et veille à la
           cohérence du récit.
         </p>
       </section>

@@ -10,7 +10,7 @@ import { OdysseeBrandComponent } from './odyssee-brand.component';
   imports: [RouterLink, OdysseeBrandComponent],
   template: `
     <header class="home-header">
-      <app-odyssee-brand />
+      <app-odyssee-brand logoSrc="/images/branding/Logo_nerys_droite_black.png" />
 
       <nav class="desktop-nav" aria-label="Navigation principale">
         <a class="active" href="#accueil" aria-current="page">Accueil</a>
@@ -148,6 +148,10 @@ import { OdysseeBrandComponent } from './odyssee-brand.component';
       grid-template-columns: minmax(190px, 1fr) auto minmax(300px, 1fr);
       align-items: center;
       gap: 2rem;
+    }
+    app-odyssee-brand {
+      --brand-logo-width: clamp(18rem, 20vw, 22.5rem);
+      --brand-logo-mobile-width: 13rem;
     }
     .desktop-nav {
       display: flex;
