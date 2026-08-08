@@ -2,13 +2,43 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Web</title>
+    <title>Projet Odyssée</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link id="app-favicon" rel="icon" type="image/svg+xml" href="/favicons/favicon-dark.svg" />
+    <link rel="icon" type="image/png" href="/favicons/favicon-96x96.png" sizes="96x96" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Projet Odyssée" />
+    <link rel="manifest" href="/favicons/site.webmanifest" />
   </head>
   <body>
     <app-root></app-root>
     <script src="config.js"></script>
+    <script>
+      (() => {
+        const favicon = document.querySelector('#app-favicon');
+        const darkIcon = '/favicons/favicon-dark.svg';
+        const lightIcon = '/favicons/favicon-light.svg';
+        const darkPreference = window.matchMedia('(prefers-color-scheme: dark)');
+
+        const updateFavicon = () => {
+          const appColorSchemes = getComputedStyle(document.documentElement)
+            .colorScheme.split(/\s+/)
+            .filter(Boolean);
+          const usesDarkTheme = appColorSchemes.includes('dark')
+            ? true
+            : appColorSchemes.includes('light')
+              ? false
+              : darkPreference.matches;
+
+          if (favicon instanceof HTMLLinkElement) {
+            favicon.href = usesDarkTheme ? darkIcon : lightIcon;
+          }
+        };
+
+        updateFavicon();
+        darkPreference.addEventListener('change', updateFavicon);
+      })();
+    </script>
   </body>
 </html>
