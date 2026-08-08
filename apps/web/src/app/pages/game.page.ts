@@ -7,6 +7,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
 import type { LocalAdventure } from '../core/game.service';
+import { dashboardNotificationState } from '../shared/dashboard-notification';
 import { DeleteGameDialogComponent } from '../shared/delete-game-dialog.component';
 
 @Component({
@@ -435,7 +436,7 @@ export class GamePage implements OnInit, OnDestroy {
   }
   async onGameDeleted(): Promise<void> {
     await this.router.navigate(['/tableau-de-bord'], {
-      queryParams: { partieSupprimee: '1' },
+      state: dashboardNotificationState('adventure-deleted'),
     });
   }
   private async redirectAfterRemoteDeletion(): Promise<void> {
@@ -445,7 +446,7 @@ export class GamePage implements OnInit, OnDestroy {
     if (this.clockIntervalId) clearInterval(this.clockIntervalId);
     if (this.realtimeChannel) await this.auth.supabase?.removeChannel(this.realtimeChannel);
     await this.router.navigate(['/tableau-de-bord'], {
-      queryParams: { partieSupprimee: 'autre' },
+      state: dashboardNotificationState('adventure-deleted-by-other'),
     });
   }
   private async syncSubmissionStatusForCurrentTurn(): Promise<void> {

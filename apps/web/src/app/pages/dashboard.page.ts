@@ -1,9 +1,15 @@
-import type { OnInit } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import type { OnDestroy, OnInit } from '@angular/core';
 import { Component, computed, inject, input, isDevMode, output, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
 import type { GameSummary } from '../core/game.service';
+import type { DashboardNotificationState } from '../shared/dashboard-notification';
+import {
+  DASHBOARD_NOTIFICATION_MESSAGES,
+  DELETION_NOTICE_DURATION_MS,
+} from '../shared/dashboard-notification';
 import { OdysseeBrandComponent } from '../shared/odyssee-brand.component';
 
 type DashboardAdventureView = {
@@ -1148,11 +1154,13 @@ export class RecentAdventureCardComponent {
     }
   `,
 })
-export class DashboardPage implements OnInit {
+export class DashboardPage implements OnInit, OnDestroy {
   readonly auth = inject(AuthService);
   readonly games = inject(GameService);
+  private readonly document = inject(DOCUMENT);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
+  private readonly deletionNotice = this.currentDashboardNotificationState();
+  private deletionNoticeTimer: ReturnType<typeof setTimeout> | null = null;
   readonly imagePaths = DASHBOARD_IMAGES;
   readonly userName = computed(() => this.auth.user()?.displayName.trim() || 'Aventurier');
   readonly emptySlots = [0, 1, 2] as const;
@@ -1189,7 +1197,11 @@ export class DashboardPage implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.refreshDashboard();
-    this.showDeletionNotice();
+    this.showDeletionNotice(this.deletionNotice);
+  }
+
+  ngOnDestroy(): void {
+    this.clearDeletionNoticeTimer();
   }
 
   async retry(): Promise<void> {
@@ -1341,15 +1353,43 @@ export class DashboardPage implements OnInit {
     return (['compass', 'tree', 'spiral'] as const)[index % 3];
   }
 
-  private showDeletionNotice(): void {
-    const deletion = this.route.snapshot.queryParamMap.get('partieSupprimee');
-    if (deletion === 'autre') {
-      this.error.set(false);
-      this.message.set('Cette aventure a été supprimée définitivement par l’autre joueur.');
-    } else if (deletion === '1') {
-      this.error.set(false);
-      this.message.set('La partie a été supprimée définitivement.');
-    }
+  private showDeletionNotice(notification: DashboardNotificationState | undefined): void {
+    const code = notification?.notification?.code;
+    if (!code) return;
+    const message = DASHBOARD_NOTIFICATION_MESSAGES[code];
+    if (!message) return;
+    this.clearDashboardNotificationState();
+    this.error.set(false);
+    this.message.set(message);
+    this.clearDeletionNoticeTimer();
+    this.deletionNoticeTimer = setTimeout(() => {
+      if (this.message() === message) this.message.set('');
+      this.deletionNoticeTimer = null;
+    }, DELETION_NOTICE_DURATION_MS);
+  }
+
+  private currentDashboardNotificationState(): DashboardNotificationState | undefined {
+    const historyState = this.document.defaultView?.history.state as
+      DashboardNotificationState | undefined;
+    return (
+      (this.router.getCurrentNavigation()?.extras.state as
+        DashboardNotificationState | undefined) ?? historyState
+    );
+  }
+
+  private clearDashboardNotificationState(): void {
+    const view = this.document.defaultView;
+    const state = view?.history.state as DashboardNotificationState | undefined;
+    if (!view || !state?.notification) return;
+    const cleanState = { ...state };
+    delete cleanState.notification;
+    view.history.replaceState(cleanState, '', view.location.href);
+  }
+
+  private clearDeletionNoticeTimer(): void {
+    if (!this.deletionNoticeTimer) return;
+    clearTimeout(this.deletionNoticeTimer);
+    this.deletionNoticeTimer = null;
   }
 
   private fail(error: unknown): void {

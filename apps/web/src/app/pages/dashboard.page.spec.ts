@@ -1,9 +1,11 @@
+import { DOCUMENT } from '@angular/common';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
 import type { GameSummary } from '../core/game.service';
+import { DELETION_NOTICE_DURATION_MS } from '../shared/dashboard-notification';
 import { DashboardPage } from './dashboard.page';
 
 describe('DashboardPage', () => {
@@ -36,6 +38,8 @@ describe('DashboardPage', () => {
   });
 
   afterEach(() => {
+    window.history.replaceState({}, '', '/');
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
@@ -165,6 +169,67 @@ describe('DashboardPage', () => {
     expect(gameService.refresh).toHaveBeenCalledTimes(2);
     expect(fixture.componentInstance.loadError()).toBe(false);
     consoleError.mockRestore();
+  });
+
+  it('shows a temporary deletion toast from navigation state without a query param', async () => {
+    vi.useFakeTimers();
+    const view = TestBed.inject(DOCUMENT).defaultView!;
+    view.history.replaceState(
+      {
+        notification: {
+          type: 'success',
+          code: 'adventure-deleted',
+        },
+      },
+      '',
+      '/tableau-de-bord',
+    );
+
+    const fixture = TestBed.createComponent(DashboardPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    (
+      fixture.componentInstance as unknown as {
+        showDeletionNotice(notification: {
+          notification: {
+            type: 'success';
+            code: 'adventure-deleted';
+          };
+        }): void;
+      }
+    ).showDeletionNotice({
+      notification: {
+        type: 'success',
+        code: 'adventure-deleted',
+      },
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'La partie a été supprimée définitivement.',
+    );
+    expect(view.location.pathname).toBe('/tableau-de-bord');
+    expect(view.location.search).toBe('');
+    expect(view.history.state.notification).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(DELETION_NOTICE_DURATION_MS);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain(
+      'La partie a été supprimée définitivement.',
+    );
+  });
+
+  it('does not show a deletion toast on a normal dashboard load', async () => {
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'getCurrentNavigation').mockReturnValue(null);
+
+    const { element } = await render();
+
+    expect(element.textContent).not.toContain('La partie a été supprimée définitivement.');
+    expect(element.textContent).not.toContain(
+      'Cette aventure a été supprimée définitivement par l’autre joueur.',
+    );
   });
 
   it('creates through the existing game service and refreshes before navigation', async () => {

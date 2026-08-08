@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
 import type { LocalAdventure } from '../core/game.service';
+import { dashboardNotificationState } from '../shared/dashboard-notification';
 import { DeleteGameDialogComponent } from '../shared/delete-game-dialog.component';
 
 @Component({
@@ -175,7 +176,7 @@ export class LobbyPage implements OnInit, OnDestroy {
       if (this.games.isGameMissingError(e)) {
         if (this.refreshTimer) clearInterval(this.refreshTimer);
         await this.router.navigate(['/tableau-de-bord'], {
-          queryParams: { partieSupprimee: 'autre' },
+          state: dashboardNotificationState('adventure-deleted-by-other'),
         });
         return;
       }
@@ -187,7 +188,7 @@ export class LobbyPage implements OnInit, OnDestroy {
   async onGameDeleted(): Promise<void> {
     if (this.refreshTimer) clearInterval(this.refreshTimer);
     await this.router.navigate(['/tableau-de-bord'], {
-      queryParams: { partieSupprimee: '1' },
+      state: dashboardNotificationState('adventure-deleted'),
     });
   }
   ownCharacter() {

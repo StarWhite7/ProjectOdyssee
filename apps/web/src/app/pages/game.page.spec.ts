@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
 import type { LocalAdventure, TurnSubmissionStatus } from '../core/game.service';
@@ -99,6 +99,7 @@ describe('GamePage partner submission status', () => {
           useValue: {
             load: vi.fn(async () => currentGame),
             getTurnSubmissionStatus: getStatus,
+            isGameMissingError: vi.fn(() => false),
             resolveCurrentTurn: vi.fn(),
           },
         },
@@ -180,5 +181,22 @@ describe('GamePage partner submission status', () => {
 
     await vi.advanceTimersByTimeAsync(9_000);
     expect(getStatus).toHaveBeenCalledTimes(callsBeforeDestroy);
+  });
+
+  it('navigates to the clean dashboard URL with a deletion notification state', async () => {
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    await page.onGameDeleted();
+
+    expect(navigate).toHaveBeenCalledWith(['/tableau-de-bord'], {
+      state: {
+        notification: {
+          type: 'success',
+          code: 'adventure-deleted',
+        },
+      },
+    });
+    expect(navigate.mock.calls[0]?.[1]).not.toHaveProperty('queryParams');
   });
 });
