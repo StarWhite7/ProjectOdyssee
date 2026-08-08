@@ -809,7 +809,7 @@ export class AuthPage {
         this.loginForm.controls.email.value.trim(),
         this.loginForm.controls.password.value,
       );
-      await this.router.navigateByUrl('/tableau-de-bord');
+      await this.router.navigateByUrl('/dashboard');
     } catch (error) {
       this.loginError.set(true);
       this.loginMessage.set(this.authErrorMessage(error));
@@ -834,7 +834,7 @@ export class AuthPage {
         this.registerForm.controls.displayName.value,
       );
       this.registerMessage.set(message);
-      if (this.auth.authenticated()) await this.router.navigateByUrl('/tableau-de-bord');
+      if (this.auth.authenticated()) await this.router.navigateByUrl('/dashboard');
     } catch (error) {
       this.registerError.set(true);
       this.registerMessage.set(this.authErrorMessage(error));

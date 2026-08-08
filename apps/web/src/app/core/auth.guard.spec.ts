@@ -59,7 +59,7 @@ describe('authGuard', () => {
     ready.set(true);
 
     const resolved = await firstValueFrom(result as Observable<boolean | UrlTree>);
-    expect(router.serializeUrl(resolved as UrlTree)).toBe('/tableau-de-bord');
+    expect(router.serializeUrl(resolved as UrlTree)).toBe('/dashboard');
   });
 
   it('allows anonymous users to reach the login route', () => {

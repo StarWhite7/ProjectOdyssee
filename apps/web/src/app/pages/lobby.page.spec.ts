@@ -41,7 +41,7 @@ describe('LobbyPage deletion navigation', () => {
 
     await page.onGameDeleted();
 
-    expect(navigate).toHaveBeenCalledWith(['/tableau-de-bord'], {
+    expect(navigate).toHaveBeenCalledWith(['/dashboard'], {
       state: {
         notification: {
           type: 'success',

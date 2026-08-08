@@ -12,7 +12,7 @@ import { DeleteGameDialogComponent } from '../shared/delete-game-dialog.componen
   imports: [RouterLink, DeleteGameDialogComponent],
   template: `<div class="shell">
     <header class="topbar">
-      <a class="brand" routerLink="/tableau-de-bord">Nerys</a>
+      <a class="brand" routerLink="/dashboard">Nerys</a>
       <div class="lobby-actions">
         <span class="pill">Salon privé</span>
         <app-delete-game-dialog [gameId]="gameId" (deleted)="onGameDeleted()" />
@@ -175,7 +175,7 @@ export class LobbyPage implements OnInit, OnDestroy {
     } catch (e) {
       if (this.games.isGameMissingError(e)) {
         if (this.refreshTimer) clearInterval(this.refreshTimer);
-        await this.router.navigate(['/tableau-de-bord'], {
+        await this.router.navigate(['/dashboard'], {
           state: dashboardNotificationState('adventure-deleted-by-other'),
         });
         return;
@@ -187,7 +187,7 @@ export class LobbyPage implements OnInit, OnDestroy {
   }
   async onGameDeleted(): Promise<void> {
     if (this.refreshTimer) clearInterval(this.refreshTimer);
-    await this.router.navigate(['/tableau-de-bord'], {
+    await this.router.navigate(['/dashboard'], {
       state: dashboardNotificationState('adventure-deleted'),
     });
   }

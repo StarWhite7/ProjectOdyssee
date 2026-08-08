@@ -55,7 +55,7 @@ import { OdysseeBrandComponent } from './odyssee-brand.component';
                 <a
                   class="menu-item"
                   role="menuitem"
-                  routerLink="/tableau-de-bord"
+                  routerLink="/dashboard"
                   data-user-menu-item
                   (click)="closeUserMenu()"
                   >Tableau de bord</a
@@ -79,7 +79,7 @@ import { OdysseeBrandComponent } from './odyssee-brand.component';
         } @else {
           <a class="nav-button ghost" routerLink="/connexion">Se connecter</a>
         }
-        <a class="nav-button primary" routerLink="/tableau-de-bord">Commencer une aventure</a>
+        <a class="nav-button primary" routerLink="/dashboard">Commencer une aventure</a>
       </div>
 
       <button
@@ -108,7 +108,7 @@ import { OdysseeBrandComponent } from './odyssee-brand.component';
             </span>
           } @else if (auth.authenticated()) {
             <span class="mobile-user">{{ userName() }}</span>
-            <a class="nav-button ghost" routerLink="/tableau-de-bord" (click)="closeMenu()">
+            <a class="nav-button ghost" routerLink="/dashboard" (click)="closeMenu()">
               Tableau de bord
             </a>
             <button
@@ -127,7 +127,7 @@ import { OdysseeBrandComponent } from './odyssee-brand.component';
               Se connecter
             </a>
           }
-          <a class="nav-button primary" routerLink="/tableau-de-bord" (click)="closeMenu()">
+          <a class="nav-button primary" routerLink="/dashboard" (click)="closeMenu()">
             Commencer une aventure
           </a>
         </div>

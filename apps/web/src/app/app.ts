@@ -39,8 +39,20 @@ export class App implements AfterViewInit {
     { initialValue: this.router.url },
   );
   readonly audioPlacement = computed(() =>
-    this.currentUrl().startsWith('/tableau-de-bord') ? 'sidebar' : 'corner',
+    this.isDashboardUrl(this.currentUrl()) ? 'sidebar' : 'corner',
   );
+
+  private isDashboardUrl(url: string): boolean {
+    const path = url.split(/[?#]/, 1)[0];
+    return [
+      '/dashboard',
+      '/aventures',
+      '/invitations',
+      '/archives',
+      '/parametres',
+      '/tableau-de-bord',
+    ].some((dashboardPath) => path === dashboardPath || path.startsWith(`${dashboardPath}/`));
+  }
 
   ngAfterViewInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;

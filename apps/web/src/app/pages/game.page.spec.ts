@@ -189,7 +189,7 @@ describe('GamePage partner submission status', () => {
 
     await page.onGameDeleted();
 
-    expect(navigate).toHaveBeenCalledWith(['/tableau-de-bord'], {
+    expect(navigate).toHaveBeenCalledWith(['/dashboard'], {
       state: {
         notification: {
           type: 'success',

@@ -68,7 +68,7 @@ export class AuthCallbackPage {
     try {
       if (!this.auth.authenticated()) throw new Error('Session OAuth introuvable.');
       await this.auth.completeOAuthProfile();
-      await this.router.navigateByUrl('/tableau-de-bord');
+      await this.router.navigateByUrl('/dashboard');
     } catch {
       this.message.set('La connexion sociale a échoué. Revenez à la page de connexion.');
       setTimeout(() => void this.router.navigateByUrl('/connexion'), 1800);

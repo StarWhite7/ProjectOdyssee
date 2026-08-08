@@ -24,7 +24,7 @@ import { HomeHeaderComponent } from '../shared/home-header.component';
             Partez à deux, écrivez votre légende.
           </p>
           <div class="hero-actions">
-            <a class="hero-button primary" routerLink="/tableau-de-bord">
+            <a class="hero-button primary" routerLink="/dashboard">
               Commencer une aventure <span aria-hidden="true">✦</span>
             </a>
             <a class="hero-button secondary" href="#comment-jouer">

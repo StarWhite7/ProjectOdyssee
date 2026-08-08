@@ -152,7 +152,7 @@ export class PasswordResetPage {
     try {
       await this.auth.updatePassword(this.form.controls.password.value);
       this.message.set('Votre mot de passe a été mis à jour.');
-      await this.router.navigateByUrl('/tableau-de-bord');
+      await this.router.navigateByUrl('/dashboard');
     } catch {
       this.error.set(true);
       this.message.set('Impossible de mettre à jour le mot de passe pour le moment.');

@@ -15,7 +15,7 @@ import { DeleteGameDialogComponent } from '../shared/delete-game-dialog.componen
   imports: [FormsModule, RouterLink, DeleteGameDialogComponent],
   template: `<div class="shell">
     <header class="topbar">
-      <a class="brand" routerLink="/tableau-de-bord">Nerys</a>
+      <a class="brand" routerLink="/dashboard">Nerys</a>
       <nav>
         <a [routerLink]="['/aventure', gameId, 'journal']">Journal</a
         ><a [routerLink]="['/aventure', gameId, 'souvenirs']">Souvenirs</a
@@ -435,7 +435,7 @@ export class GamePage implements OnInit, OnDestroy {
     }
   }
   async onGameDeleted(): Promise<void> {
-    await this.router.navigate(['/tableau-de-bord'], {
+    await this.router.navigate(['/dashboard'], {
       state: dashboardNotificationState('adventure-deleted'),
     });
   }
@@ -445,7 +445,7 @@ export class GamePage implements OnInit, OnDestroy {
     this.stopSubmissionStatusPolling();
     if (this.clockIntervalId) clearInterval(this.clockIntervalId);
     if (this.realtimeChannel) await this.auth.supabase?.removeChannel(this.realtimeChannel);
-    await this.router.navigate(['/tableau-de-bord'], {
+    await this.router.navigate(['/dashboard'], {
       state: dashboardNotificationState('adventure-deleted-by-other'),
     });
   }

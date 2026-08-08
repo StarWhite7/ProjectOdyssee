@@ -49,6 +49,6 @@ describe('PasswordResetPage', () => {
     await fixture.componentInstance.submit();
 
     expect(auth.updatePassword).toHaveBeenCalledWith('motdepasse');
-    expect(navigate).toHaveBeenCalledWith('/tableau-de-bord');
+    expect(navigate).toHaveBeenCalledWith('/dashboard');
   });
 });

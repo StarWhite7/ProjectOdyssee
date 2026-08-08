@@ -182,7 +182,7 @@ describe('DashboardPage', () => {
         },
       },
       '',
-      '/tableau-de-bord',
+      '/dashboard',
     );
 
     const fixture = TestBed.createComponent(DashboardPage);
@@ -208,7 +208,7 @@ describe('DashboardPage', () => {
     expect(fixture.nativeElement.textContent).toContain(
       'La partie a été supprimée définitivement.',
     );
-    expect(view.location.pathname).toBe('/tableau-de-bord');
+    expect(view.location.pathname).toBe('/dashboard');
     expect(view.location.search).toBe('');
     expect(view.history.state.notification).toBeUndefined();
 

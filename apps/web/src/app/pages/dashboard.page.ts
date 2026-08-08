@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import type { OnDestroy, OnInit } from '@angular/core';
 import { Component, computed, inject, input, isDevMode, output, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
 import type { GameSummary } from '../core/game.service';
@@ -36,7 +36,7 @@ const DASHBOARD_IMAGES = {
 
 @Component({
   selector: 'app-dashboard-sidebar',
-  imports: [RouterLink, OdysseeBrandComponent],
+  imports: [RouterLink, RouterLinkActive, OdysseeBrandComponent],
   template: `
     <aside class="dashboard-sidebar" aria-label="Navigation du tableau de bord">
       <div class="sidebar-brand">
@@ -44,23 +44,21 @@ const DASHBOARD_IMAGES = {
       </div>
 
       <nav class="sidebar-nav" aria-label="Sections">
-        <a class="nav-item active" routerLink="/tableau-de-bord" aria-current="page">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z" />
-            </svg>
-          </span>
-          <span class="nav-label">Tableau de bord</span>
-        </a>
         @for (item of navItems; track item.label) {
-          <button class="nav-item" type="button">
+          <a
+            class="nav-item"
+            [routerLink]="item.route"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            ariaCurrentWhenActive="page"
+          >
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24">
                 <path [attr.d]="item.icon" />
               </svg>
             </span>
             <span class="nav-label">{{ item.label }}</span>
-          </button>
+          </a>
         }
       </nav>
 
@@ -180,23 +178,28 @@ const DASHBOARD_IMAGES = {
 export class DashboardSidebarComponent {
   readonly navItems = [
     {
+      label: 'Tableau de bord',
+      route: '/dashboard',
+      icon: 'm3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z',
+    },
+    {
       label: 'Mes aventures',
+      route: '/aventures',
       icon: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z M3.3 7 12 12l8.7-5 M12 22V12',
     },
     {
-      label: 'Personnages',
-      icon: 'M20 21a8 8 0 0 0-16 0 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
-    },
-    {
-      label: 'Messages',
+      label: 'Invitations',
+      route: '/invitations',
       icon: 'M4 5h16v12H5.5L4 19.5V5Z M8 9h8 M8 13h5',
     },
     {
-      label: 'Bibliothèque',
+      label: 'Archives',
+      route: '/archives',
       icon: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5Zm0 0v-15',
     },
     {
       label: 'Paramètres',
+      route: '/parametres',
       icon: 'M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .92l-.03.08a2 2 0 0 1-3.94 0l-.03-.08a1.7 1.7 0 0 0-1-.92 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.92-1l-.08-.03a2 2 0 0 1 0-3.94l.08-.03a1.7 1.7 0 0 0 .92-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.92l.03-.08a2 2 0 0 1 3.94 0l.03.08a1.7 1.7 0 0 0 1 .92 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.15.42.49.75.92 1l.08.03a2 2 0 0 1 0 3.94l-.08.03a1.7 1.7 0 0 0-.92 1Z',
     },
   ];
@@ -506,17 +509,9 @@ export class RecentAdventureCardComponent {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [DashboardSidebarComponent, DashboardHeaderComponent, RecentAdventureCardComponent],
+  imports: [DashboardHeaderComponent, RecentAdventureCardComponent],
   template: `
-    <main id="main" class="dashboard-page">
-      <div class="dashboard-overlay left"></div>
-      <div class="dashboard-overlay light"></div>
-      <div class="dashboard-overlay bottom"></div>
-
-      <div class="dashboard-layout">
-        <app-dashboard-sidebar />
-
-        <section class="dashboard-main" aria-labelledby="dashboard-title">
+    <section class="dashboard-main" aria-labelledby="dashboard-title">
           <app-dashboard-header [userName]="userName()" [subtitle]="dashboardSubtitle()" />
 
           @if (message()) {
@@ -681,56 +676,14 @@ export class RecentAdventureCardComponent {
               }
             </div>
           </section>
-        </section>
-      </div>
-    </main>
+    </section>
   `,
   styles: `
     :host {
       display: block;
-      color: #f8f5ee;
-    }
-    .dashboard-page {
-      position: relative;
-      height: 100svh;
-      min-height: 100svh;
-      overflow: hidden;
-    }
-    .dashboard-overlay {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-    }
-    .dashboard-overlay.left {
-      background: linear-gradient(
-        90deg,
-        rgba(9, 16, 45, 0.72),
-        rgba(9, 16, 45, 0.24) 24%,
-        transparent 55%
-      );
-    }
-    .dashboard-overlay.light {
-      background:
-        radial-gradient(ellipse at 50% 28%, rgba(255, 236, 207, 0.5), transparent 34%),
-        linear-gradient(
-          90deg,
-          transparent 16rem,
-          rgba(255, 255, 255, 0.2) 16rem,
-          rgba(255, 255, 255, 0.06) 72%
-        );
-      mix-blend-mode: screen;
-      opacity: 0.62;
-    }
-    .dashboard-overlay.bottom {
-      background: linear-gradient(180deg, transparent 56%, rgba(10, 16, 43, 0.5));
-    }
-    .dashboard-layout {
-      position: relative;
-      z-index: 1;
       height: 100%;
-      display: grid;
-      grid-template-columns: clamp(15.8rem, 18vw, 18.1rem) minmax(0, 1fr);
-      overflow: hidden;
+      min-height: 0;
+      color: #f8f5ee;
     }
     .dashboard-main {
       position: relative;
@@ -1117,18 +1070,6 @@ export class RecentAdventureCardComponent {
       }
     }
     @media (max-width: 980px) {
-      .dashboard-page {
-        height: auto;
-        min-height: 100svh;
-        overflow: visible;
-      }
-      .dashboard-layout {
-        display: block;
-        overflow: visible;
-      }
-      app-dashboard-sidebar {
-        display: none;
-      }
       .dashboard-main {
         height: auto;
         min-height: 100svh;

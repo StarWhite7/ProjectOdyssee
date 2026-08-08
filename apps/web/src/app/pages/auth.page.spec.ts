@@ -78,7 +78,7 @@ describe('AuthPage', () => {
     await fixture.componentInstance.submitLogin();
 
     expect(auth.signIn).toHaveBeenCalledWith('mara@example.com', 'motdepasse');
-    expect(navigate).toHaveBeenCalledWith('/tableau-de-bord');
+    expect(navigate).toHaveBeenCalledWith('/dashboard');
   });
 
   it('requires terms before registration', async () => {
@@ -114,7 +114,7 @@ describe('AuthPage', () => {
 
     authenticated.set(true);
     await fixture.componentInstance.submitRegister();
-    expect(navigate).toHaveBeenCalledWith('/tableau-de-bord');
+    expect(navigate).toHaveBeenCalledWith('/dashboard');
   });
 
   it('sends a reset link without revealing whether the account exists', async () => {

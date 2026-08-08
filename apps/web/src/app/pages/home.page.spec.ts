@@ -19,7 +19,7 @@ describe('HomePage', () => {
     expect(element.querySelector('h1')?.textContent).toContain('Votre histoire.');
     expect(element.querySelector('video')).toBeFalsy();
     expect(element.querySelector('app-ambient-audio-control')).toBeFalsy();
-    expect(element.querySelector('a[href="/tableau-de-bord"]')).toBeTruthy();
+    expect(element.querySelector('a[href="/dashboard"]')).toBeTruthy();
     expect(element.querySelector('a[href="#comment-jouer"]')).toBeTruthy();
   });
 });

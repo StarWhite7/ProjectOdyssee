@@ -34,6 +34,6 @@ describe('AuthCallbackPage', () => {
     await fixture.whenStable();
 
     expect(auth.completeOAuthProfile).toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledWith('/tableau-de-bord');
+    expect(navigate).toHaveBeenCalledWith('/dashboard');
   });
 });

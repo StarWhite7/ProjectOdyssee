@@ -24,10 +24,38 @@ export const routes: Routes = [
     path: 'confidentialite',
     loadComponent: () => import('./pages/legal.page').then((m) => m.LegalPage),
   },
+  { path: 'tableau-de-bord', redirectTo: 'dashboard', pathMatch: 'full' },
   {
-    path: 'tableau-de-bord',
-    canActivate: [authGuard],
-    loadComponent: () => import('./pages/dashboard.page').then((m) => m.DashboardPage),
+    path: '',
+    loadComponent: () =>
+      import('./pages/dashboard-layout.page').then((m) => m.DashboardLayoutPage),
+    children: [
+      {
+        path: 'dashboard',
+        canActivate: [authGuard],
+        loadComponent: () => import('./pages/dashboard.page').then((m) => m.DashboardPage),
+      },
+      {
+        path: 'aventures',
+        canActivate: [authGuard],
+        loadComponent: () => import('./pages/adventures.page').then((m) => m.AdventuresPage),
+      },
+      {
+        path: 'invitations',
+        canActivate: [authGuard],
+        loadComponent: () => import('./pages/invitations.page').then((m) => m.InvitationsPage),
+      },
+      {
+        path: 'archives',
+        canActivate: [authGuard],
+        loadComponent: () => import('./pages/archives.page').then((m) => m.ArchivesPage),
+      },
+      {
+        path: 'parametres',
+        canActivate: [authGuard],
+        loadComponent: () => import('./pages/settings.page').then((m) => m.SettingsPage),
+      },
+    ],
   },
   {
     path: 'aventure/:id/salon',
