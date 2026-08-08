@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
 import type { GameSummary } from '../core/game.service';
+import { OdysseeBrandComponent } from '../shared/odyssee-brand.component';
 
 type DashboardAdventureView = {
   id: string;
@@ -29,18 +30,12 @@ const DASHBOARD_IMAGES = {
 
 @Component({
   selector: 'app-dashboard-sidebar',
-  imports: [RouterLink],
+  imports: [RouterLink, OdysseeBrandComponent],
   template: `
     <aside class="dashboard-sidebar" aria-label="Navigation du tableau de bord">
-      <a class="sidebar-brand" routerLink="/" aria-label="Projet Odyssée, accueil">
-        <svg viewBox="0 0 64 64" aria-hidden="true">
-          <circle cx="32" cy="32" r="21" />
-          <circle cx="32" cy="32" r="4" />
-          <path d="M32 2v60M2 32h60M11 11l42 42M53 11 11 53" />
-          <path d="m32 8 5 19 19 5-19 5-5 19-5-19-19-5 19-5Z" />
-        </svg>
-        <span><small>Projet</small>Odyssée</span>
-      </a>
+      <div class="sidebar-brand">
+        <app-odyssee-brand />
+      </div>
 
       <nav class="sidebar-nav" aria-label="Sections">
         <a class="nav-item active" routerLink="/tableau-de-bord" aria-current="page">
@@ -71,8 +66,8 @@ const DASHBOARD_IMAGES = {
       height: 100%;
       min-height: 0;
       padding: clamp(1.25rem, 3vh, 2.4rem) clamp(1.15rem, 1.9vw, 1.9rem);
-      display: grid;
-      grid-template-rows: auto minmax(0, 1fr) auto;
+      display: flex;
+      flex-direction: column;
       gap: clamp(1rem, 2.4vh, 2rem);
       color: rgba(255, 255, 255, 0.9);
       background:
@@ -83,48 +78,29 @@ const DASHBOARD_IMAGES = {
       backdrop-filter: blur(15px);
     }
     .sidebar-brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.8rem;
+      width: 100%;
+      display: flex;
+      justify-content: center;
       color: #fff8ea;
-      text-decoration: none;
-      font:
-        500 clamp(1.45rem, 1.9vw, 2rem) 'Newsreader',
-        serif;
-      letter-spacing: 0.09em;
-      text-transform: uppercase;
-    }
-    .sidebar-brand svg {
-      width: clamp(3.4rem, 4.6vw, 4.8rem);
-      height: clamp(3.4rem, 4.6vw, 4.8rem);
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 0.75;
-      opacity: 0.85;
-    }
-    .sidebar-brand small {
-      display: block;
-      margin-bottom: 0.1rem;
-      font:
-        500 0.62rem 'DM Sans',
-        sans-serif;
-      letter-spacing: 0.36em;
     }
     .sidebar-nav {
+      width: calc(100% - 0.5rem);
+      max-width: 14.25rem;
+      margin-inline: auto;
       display: grid;
       align-content: start;
-      gap: clamp(0.45rem, 1.1vh, 0.8rem);
-      padding-top: clamp(0.3rem, 1.6vh, 1.2rem);
+      gap: clamp(0.45rem, 1vh, 0.65rem);
+      padding-top: clamp(0.15rem, 1.2vh, 0.85rem);
     }
     .nav-item {
       width: 100%;
-      min-height: clamp(2.55rem, 5.4vh, 3.6rem);
-      padding: 0 clamp(0.85rem, 1.2vw, 1.2rem);
+      min-height: clamp(2.55rem, 5.2vh, 3.35rem);
+      padding: 0 1.125rem;
       border: 1px solid transparent;
       border-radius: 0.65rem;
       display: flex;
       align-items: center;
-      gap: 0.85rem;
+      gap: 0.875rem;
       color: rgba(255, 255, 255, 0.82);
       background: transparent;
       box-shadow: none;
@@ -138,14 +114,14 @@ const DASHBOARD_IMAGES = {
         color 0.2s ease;
     }
     .nav-item svg {
-      width: 1.28rem;
-      height: 1.28rem;
+      width: 1.25rem;
+      height: 1.25rem;
       fill: none;
       stroke: currentColor;
       stroke-width: 1.7;
       stroke-linecap: round;
       stroke-linejoin: round;
-      flex: 0 0 auto;
+      flex: 0 0 1.25rem;
     }
     .nav-item.active,
     .nav-item:hover {
@@ -157,7 +133,11 @@ const DASHBOARD_IMAGES = {
       transform: translateY(-1px);
     }
     .sidebar-audio-space {
+      width: calc(100% - 0.5rem);
+      max-width: 14.25rem;
       height: clamp(6.2rem, 12vh, 8.2rem);
+      margin-inline: auto;
+      margin-top: auto;
     }
     a:focus-visible,
     button:focus-visible {
@@ -168,10 +148,6 @@ const DASHBOARD_IMAGES = {
       .dashboard-sidebar {
         padding-block: 1.05rem;
         gap: 0.8rem;
-      }
-      .sidebar-brand svg {
-        width: 3.2rem;
-        height: 3.2rem;
       }
       .sidebar-audio-space {
         height: 5.8rem;

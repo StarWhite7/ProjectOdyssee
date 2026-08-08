@@ -3,21 +3,14 @@ import { Component, ElementRef, HostListener, computed, inject, signal } from '@
 import type { OnDestroy } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
+import { OdysseeBrandComponent } from './odyssee-brand.component';
 
 @Component({
   selector: 'app-home-header',
-  imports: [RouterLink],
+  imports: [RouterLink, OdysseeBrandComponent],
   template: `
     <header class="home-header">
-      <a class="home-brand" routerLink="/" aria-label="Projet Odyssée, accueil">
-        <svg class="compass" viewBox="0 0 64 64" aria-hidden="true">
-          <circle cx="32" cy="32" r="21" />
-          <circle cx="32" cy="32" r="4" />
-          <path d="M32 2v60M2 32h60M11 11l42 42M53 11 11 53" />
-          <path class="needle" d="m32 8 5 19 19 5-19 5-5 19-5-19-19-5 19-5Z" />
-        </svg>
-        <span><small>Projet</small>Odyssée</span>
-      </a>
+      <app-odyssee-brand />
 
       <nav class="desktop-nav" aria-label="Navigation principale">
         <a class="active" href="#accueil" aria-current="page">Accueil</a>
@@ -155,39 +148,6 @@ import { AuthService } from '../core/auth.service';
       grid-template-columns: minmax(190px, 1fr) auto minmax(300px, 1fr);
       align-items: center;
       gap: 2rem;
-    }
-    .home-brand {
-      display: inline-flex;
-      width: max-content;
-      align-items: center;
-      gap: 0.75rem;
-      color: inherit;
-      text-decoration: none;
-      font:
-        500 1.65rem 'Newsreader',
-        serif;
-      letter-spacing: 0.09em;
-      text-transform: uppercase;
-    }
-    .home-brand small {
-      display: block;
-      margin-bottom: 0.15rem;
-      font:
-        500 0.66rem 'DM Sans',
-        sans-serif;
-      letter-spacing: 0.35em;
-    }
-    .compass {
-      width: 4.25rem;
-      height: 4.25rem;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 0.75;
-      opacity: 0.8;
-    }
-    .compass .needle {
-      fill: rgba(255, 255, 255, 0.1);
-      stroke-width: 1;
     }
     .desktop-nav {
       display: flex;
@@ -436,17 +396,6 @@ import { AuthService } from '../core/auth.service';
       .home-header {
         height: 5rem;
         padding-inline: 1rem;
-      }
-      .home-brand {
-        font-size: 1.18rem;
-        gap: 0.5rem;
-      }
-      .home-brand small {
-        font-size: 0.5rem;
-      }
-      .compass {
-        width: 3rem;
-        height: 3rem;
       }
       .mobile-actions {
         grid-template-columns: 1fr;
