@@ -39,17 +39,21 @@ const DASHBOARD_IMAGES = {
 
       <nav class="sidebar-nav" aria-label="Sections">
         <a class="nav-item active" routerLink="/tableau-de-bord" aria-current="page">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z" />
-          </svg>
-          Tableau de bord
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z" />
+            </svg>
+          </span>
+          <span class="nav-label">Tableau de bord</span>
         </a>
         @for (item of navItems; track item.label) {
           <button class="nav-item" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path [attr.d]="item.icon" />
-            </svg>
-            {{ item.label }}
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path [attr.d]="item.icon" />
+              </svg>
+            </span>
+            <span class="nav-label">{{ item.label }}</span>
           </button>
         }
       </nav>
@@ -98,9 +102,10 @@ const DASHBOARD_IMAGES = {
       padding: 0 1.125rem;
       border: 1px solid transparent;
       border-radius: 0.65rem;
-      display: flex;
+      display: grid;
+      grid-template-columns: 1.25rem minmax(0, 1fr);
       align-items: center;
-      gap: 0.875rem;
+      column-gap: 0.875rem;
       color: rgba(255, 255, 255, 0.82);
       background: transparent;
       box-shadow: none;
@@ -113,7 +118,13 @@ const DASHBOARD_IMAGES = {
         transform 0.2s ease,
         color 0.2s ease;
     }
-    .nav-item svg {
+    .nav-icon {
+      width: 1.25rem;
+      height: 1.25rem;
+      display: grid;
+      place-items: center;
+    }
+    .nav-icon svg {
       width: 1.25rem;
       height: 1.25rem;
       fill: none;
@@ -121,7 +132,9 @@ const DASHBOARD_IMAGES = {
       stroke-width: 1.7;
       stroke-linecap: round;
       stroke-linejoin: round;
-      flex: 0 0 1.25rem;
+    }
+    .nav-label {
+      min-width: 0;
     }
     .nav-item.active,
     .nav-item:hover {
