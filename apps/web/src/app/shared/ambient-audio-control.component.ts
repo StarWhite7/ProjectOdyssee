@@ -274,24 +274,23 @@ export class AmbientAudioControlComponent implements AfterViewInit, OnDestroy {
     return this.audioState.preferredEnabled() ? 'Reprendre la musique' : 'Activer la musique';
   });
   private fadeTimer?: ReturnType<typeof setInterval>;
+  private hasStarted = false;
 
   constructor() {
     effect(() => {
       const preferred = this.audioState.preferredEnabled();
+      const playing = this.audioState.playing();
       const audio = this.audioRef?.nativeElement;
       if (!audio) return;
-      if (!preferred && this.audioState.playing()) {
-        this.stopFade();
-        audio.pause();
-      }
-      if (preferred && !this.audioState.playing()) void this.start(audio);
+      this.syncPlayback(audio, preferred, playing);
     });
   }
 
   ngAfterViewInit(): void {
     const audio = this.audioRef?.nativeElement;
-    if (!audio || !this.audioState.playing()) return;
+    if (!audio) return;
     audio.volume = this.volumePercent() / 100;
+    this.syncPlayback(audio);
   }
 
   async toggle(): Promise<void> {
@@ -313,11 +312,25 @@ export class AmbientAudioControlComponent implements AfterViewInit, OnDestroy {
     audio.volume = 0;
     try {
       await audio.play();
+      this.hasStarted = true;
       this.audioState.setPlaying(true);
       this.fadeTo(audio, targetVolume);
     } catch {
       this.audioState.setUnavailable();
     }
+  }
+
+  private syncPlayback(
+    audio: HTMLAudioElement,
+    preferred = this.audioState.preferredEnabled(),
+    playing = this.audioState.playing(),
+  ): void {
+    if (!preferred) {
+      this.stopFade();
+      if (this.hasStarted || !audio.paused) audio.pause();
+      return;
+    }
+    if (!playing) void this.start(audio);
   }
 
   ngOnDestroy(): void {

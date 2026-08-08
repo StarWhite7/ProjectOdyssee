@@ -30,6 +30,7 @@ describe('AmbientAudioControlComponent', () => {
     const audio = fixture.nativeElement.querySelector('audio') as HTMLAudioElement;
     const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
 
+    expect(fixture.nativeElement.querySelectorAll('audio')).toHaveLength(1);
     expect(audio.getAttribute('preload')).toBe('none');
     expect(button.getAttribute('aria-pressed')).toBe('false');
     expect(button.getAttribute('aria-label')).toBe('Activer la musique');
@@ -48,6 +49,68 @@ describe('AmbientAudioControlComponent', () => {
     expect(play).toHaveBeenCalledOnce();
     expect(TestBed.inject(AmbientAudioService).playing()).toBe(true);
     expect(localStorage.getItem('odyssee-ambient-audio-enabled')).toBe('true');
+    fixture.destroy();
+  });
+
+  it('starts playback when the shared preference is enabled externally', async () => {
+    const fixture = TestBed.createComponent(AmbientAudioControlComponent);
+    fixture.detectChanges();
+    const audio = fixture.nativeElement.querySelector('audio') as HTMLAudioElement;
+    const play = vi.spyOn(audio, 'play').mockResolvedValue();
+    const service = TestBed.inject(AmbientAudioService);
+
+    service.setPreferredEnabled(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(play).toHaveBeenCalled();
+    expect(service.playing()).toBe(true);
+    expect(fixture.nativeElement.querySelector('button').getAttribute('aria-pressed')).toBe('true');
+    fixture.destroy();
+  });
+
+  it('pauses playback when the shared preference is disabled externally', async () => {
+    const fixture = TestBed.createComponent(AmbientAudioControlComponent);
+    fixture.detectChanges();
+    const audio = fixture.nativeElement.querySelector('audio') as HTMLAudioElement;
+    vi.spyOn(audio, 'play').mockResolvedValue();
+    const pause = vi.spyOn(audio, 'pause').mockImplementation(() => undefined);
+    const service = TestBed.inject(AmbientAudioService);
+
+    await fixture.componentInstance.toggle();
+    audio.currentTime = 42;
+    service.setPreferredEnabled(false);
+    fixture.detectChanges();
+
+    expect(pause).toHaveBeenCalled();
+    expect(service.preferredEnabled()).toBe(false);
+    expect(service.playing()).toBe(false);
+    expect(audio.currentTime).toBe(42);
+    fixture.destroy();
+  });
+
+  it('resumes from the paused position and keeps the same volume', async () => {
+    const fixture = TestBed.createComponent(AmbientAudioControlComponent);
+    fixture.detectChanges();
+    const audio = fixture.nativeElement.querySelector('audio') as HTMLAudioElement;
+    const play = vi.spyOn(audio, 'play').mockResolvedValue();
+    vi.spyOn(audio, 'pause').mockImplementation(() => undefined);
+    const service = TestBed.inject(AmbientAudioService);
+
+    service.setVolumePercent(20);
+    await fixture.componentInstance.toggle();
+    audio.currentTime = 37;
+    service.setPreferredEnabled(false);
+    fixture.detectChanges();
+    service.setPreferredEnabled(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(play).toHaveBeenCalledTimes(2);
+    expect(audio.currentTime).toBe(37);
+    expect(service.volumePercent()).toBe(20);
+    expect(localStorage.getItem('odyssee-ambient-audio-volume')).toBe('0.2');
     fixture.destroy();
   });
 
