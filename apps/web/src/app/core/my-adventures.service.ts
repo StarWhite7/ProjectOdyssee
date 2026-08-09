@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 import {
   GAME_STATUSES,
   gameStatusLabel,
-  getGameRouteSection,
+  getMyAdventureRouteSection,
   isActiveGameStatus,
   isCompletedGameStatus,
   isPendingGameStatus,
@@ -205,7 +205,7 @@ export class MyAdventuresService {
 
   private routeFor(id: string, status: string, group: MyAdventureGroup): unknown[] {
     void group;
-    return ['/aventure', id, getGameRouteSection(status)];
+    return ['/aventure', id, getMyAdventureRouteSection(status)];
   }
 
   private companionFromPlayers(

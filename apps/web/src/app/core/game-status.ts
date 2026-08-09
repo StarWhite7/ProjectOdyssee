@@ -53,6 +53,11 @@ export function getGameRouteSection(status: string): GameRouteSection {
   return 'salon';
 }
 
+export function getMyAdventureRouteSection(status: string): GameRouteSection {
+  if (isPendingGameStatus(status)) return 'salon';
+  return getGameRouteSection(status);
+}
+
 export function gameStatusLabel(status: string): string {
   switch (status) {
     case GAME_STATUSES.WAITING:

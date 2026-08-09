@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   MyAdventuresService,
   type MyAdventureGroup,
@@ -12,19 +12,27 @@ import {
 
 const PAGE_SIZE: Record<MyAdventureGroup, number> = {
   active: 3,
-  pending: 2,
+  pending: 3,
   completed: 3,
 };
 
+const ADVENTURE_SECTION_IMAGES = {
+  active: '/images/adventures/en-cours.png',
+  pending: '/images/adventures/en-attente.png',
+  completed: '/images/adventures/terminees.png',
+} as const;
+
 @Component({
   selector: 'app-adventures-page',
-  imports: [FormsModule, NgTemplateOutlet],
+  imports: [FormsModule, NgTemplateOutlet, RouterLink],
   template: `
     <section class="adventures-page" aria-labelledby="adventures-title">
       <header class="adventures-header">
         <div class="title-copy">
           <h1 id="adventures-title">Mes aventures</h1>
-          <p>Retrouvez toutes vos aventures en cours, en attente et celles que vous avez déjà vécues.</p>
+          <p>
+            Retrouvez toutes vos aventures en cours, en attente et celles que vous avez déjà vécues.
+          </p>
         </div>
 
         <div class="toolbar" aria-label="Recherche et tri des aventures">
@@ -56,7 +64,10 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
 
       @if (loading()) {
         <div class="adventures-content" aria-busy="true" aria-live="polite">
-          <section class="adventure-section active-section">
+          <section
+            class="adventure-section active-section"
+            [style.--section-bg]="background(sectionImages.active)"
+          >
             <h2>En cours</h2>
             <div class="active-grid">
               @for (item of skeletonCards(3); track item) {
@@ -64,7 +75,10 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
               }
             </div>
           </section>
-          <section class="adventure-section pending-section">
+          <section
+            class="adventure-section pending-section"
+            [style.--section-bg]="background(sectionImages.pending)"
+          >
             <h2>En attente</h2>
             <div class="pending-grid">
               @for (item of skeletonCards(2); track item) {
@@ -72,7 +86,10 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
               }
             </div>
           </section>
-          <section class="adventure-section completed-section">
+          <section
+            class="adventure-section completed-section"
+            [style.--section-bg]="background(sectionImages.completed)"
+          >
             <h2>Terminées</h2>
             <div class="completed-grid">
               @for (item of skeletonCards(3); track item) {
@@ -88,7 +105,11 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
         </article>
       } @else {
         <div class="adventures-content">
-          <section class="adventure-section active-section" aria-labelledby="active-title">
+          <section
+            class="adventure-section active-section"
+            aria-labelledby="active-title"
+            [style.--section-bg]="background(sectionImages.active)"
+          >
             <div class="section-head">
               <h2 id="active-title">En cours</h2>
               <ng-container
@@ -98,7 +119,10 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
             </div>
             <div class="active-grid">
               @for (adventure of visibleActiveAdventures(); track adventure.id) {
-                <article class="adventure-card" [style.--cover]="background(adventure.coverImageUrl)">
+                <article
+                  class="adventure-card"
+                  [style.--cover]="background(adventure.coverImageUrl)"
+                >
                   <div class="card-copy">
                     <h3>{{ adventure.title }}</h3>
                     <div class="card-meta">
@@ -128,7 +152,11 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
             </div>
           </section>
 
-          <section class="adventure-section pending-section" aria-labelledby="pending-title">
+          <section
+            class="adventure-section pending-section"
+            aria-labelledby="pending-title"
+            [style.--section-bg]="background(sectionImages.pending)"
+          >
             <div class="section-head">
               <h2 id="pending-title">En attente</h2>
               <ng-container
@@ -138,7 +166,12 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
             </div>
             <div class="pending-grid">
               @for (adventure of visiblePendingAdventures(); track adventure.id) {
-                <article class="pending-card" [style.--cover]="background(adventure.coverImageUrl)">
+                <a
+                  class="pending-card"
+                  [routerLink]="adventure.route"
+                  [style.--cover]="background(adventure.coverImageUrl)"
+                  [attr.aria-label]="'Ouvrir le salon de ' + adventure.title"
+                >
                   <div class="card-copy">
                     <h3>{{ adventure.title }}</h3>
                     <div class="card-meta">
@@ -156,7 +189,7 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
                     </div>
                   </div>
                   <span class="status-badge">{{ adventure.statusLabel }}</span>
-                </article>
+                </a>
               } @empty {
                 <article class="empty-state compact">
                   <h3>Aucune aventure en attente.</h3>
@@ -165,7 +198,11 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
             </div>
           </section>
 
-          <section class="adventure-section completed-section" aria-labelledby="completed-title">
+          <section
+            class="adventure-section completed-section"
+            aria-labelledby="completed-title"
+            [style.--section-bg]="background(sectionImages.completed)"
+          >
             <div class="section-head">
               <h2 id="completed-title">Terminées</h2>
               <ng-container
@@ -175,7 +212,10 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
             </div>
             <div class="completed-grid">
               @for (adventure of visibleCompletedAdventures(); track adventure.id) {
-                <article class="completed-card" [style.--cover]="background(adventure.coverImageUrl)">
+                <article
+                  class="completed-card"
+                  [style.--cover]="background(adventure.coverImageUrl)"
+                >
                   <div class="card-copy">
                     <span class="check" aria-hidden="true">✓</span>
                     <h3>{{ adventure.title }}</h3>
@@ -243,8 +283,7 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
     .adventures-page {
       height: 100%;
       min-height: 0;
-      padding: clamp(1.15rem, 2.5vh, 2.25rem) clamp(1.7rem, 3.2vw, 3.4rem)
-        clamp(1rem, 2vh, 1.8rem);
+      padding: clamp(1.15rem, 2.5vh, 2.25rem) clamp(1.7rem, 3.2vw, 3.4rem) clamp(1rem, 2vh, 1.8rem);
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
       gap: clamp(0.8rem, 1.6vh, 1.3rem);
@@ -263,7 +302,9 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
     .title-copy h1 {
       margin: 0;
       color: #172448;
-      font: 600 clamp(2.15rem, 3.15vw, 3.8rem) / 0.95 'Newsreader', serif;
+      font:
+        600 clamp(2.15rem, 3.15vw, 3.8rem) / 0.95 'Newsreader',
+        serif;
       letter-spacing: 0;
     }
     .title-copy p {
@@ -349,7 +390,9 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
     h2 {
       margin: 0;
       color: #172448;
-      font: 600 clamp(1rem, 1.25vw, 1.3rem) / 1.05 'Newsreader', serif;
+      font:
+        600 clamp(1rem, 1.25vw, 1.3rem) / 1.05 'Newsreader',
+        serif;
       letter-spacing: 0;
     }
     .active-grid,
@@ -358,13 +401,29 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
       min-height: 0;
       display: grid;
       gap: clamp(0.75rem, 1.2vw, 1rem);
+      border-radius: 0.8rem;
+      background-image: var(--section-bg);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      overflow: hidden;
     }
     .active-grid,
     .completed-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
     .pending-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      box-sizing: border-box;
+
+      padding-top: clamp(0.35rem, 0.6vh, 0.5rem);
+      padding-bottom: clamp(0.55rem, 0.9vh, 0.75rem);
+
+      align-items: stretch;
+    }
+
+    .pending-card {
+      margin: 0 clamp(0.2rem, 0.45vh, 0.4rem);
     }
     .adventure-card,
     .pending-card,
@@ -388,20 +447,32 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
       justify-content: space-between;
       gap: 1rem;
       background-image:
-        linear-gradient(180deg, rgba(9, 16, 45, 0.08) 0%, rgba(9, 16, 45, 0.82) 100%),
-        var(--cover);
+        linear-gradient(180deg, rgba(9, 16, 45, 0.08) 0%, rgba(9, 16, 45, 0.82) 100%), var(--cover);
       background-size: cover;
       background-position: center;
     }
     .pending-card {
+      margin: clamp(0.2rem, 0.45vh, 0.4rem);
+      cursor: pointer;
+      text-decoration: none;
+      transition:
+        filter 160ms ease,
+        transform 160ms ease,
+        box-shadow 160ms ease;
       background-image:
-        linear-gradient(90deg, rgba(9, 16, 45, 0.82), rgba(9, 16, 45, 0.42)),
-        var(--cover);
+        linear-gradient(90deg, rgba(9, 16, 45, 0.82), rgba(9, 16, 45, 0.42)), var(--cover);
+    }
+    .pending-card:hover {
+      filter: brightness(1.04);
+      transform: translateY(-1px);
+    }
+    .pending-card:focus-visible {
+      outline: 3px solid rgba(255, 255, 255, 0.86);
+      outline-offset: 3px;
     }
     .completed-card {
       background-image:
-        linear-gradient(90deg, rgba(9, 16, 45, 0.78), rgba(9, 16, 45, 0.36)),
-        var(--cover);
+        linear-gradient(90deg, rgba(9, 16, 45, 0.78), rgba(9, 16, 45, 0.36)), var(--cover);
     }
     .card-copy {
       min-width: 0;
@@ -410,7 +481,9 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
     h3 {
       margin: 0;
       color: white;
-      font: 600 clamp(1.05rem, 1.55vw, 1.65rem) / 1.05 'Newsreader', serif;
+      font:
+        600 clamp(1.05rem, 1.55vw, 1.65rem) / 1.05 'Newsreader',
+        serif;
       letter-spacing: 0;
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -484,15 +557,25 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
       font-weight: 800;
     }
     .empty-state {
-      height: 100%;
-      padding: 1rem;
-      display: grid;
-      align-content: center;
-      background: rgba(16, 27, 62, 0.38);
-      backdrop-filter: blur(12px);
+      width: fit-content;
+      max-width: min(90%, 28rem);
+      height: auto;
+      margin: clamp(0.8rem, 1.4vh, 1.15rem);
+      padding: 0.75rem 1rem;
+      align-self: center;
+      justify-self: start;
+      display: block;
+      background: rgba(7, 10, 18, 0.34);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .active-grid .empty-state,
+    .pending-grid .empty-state,
+    .completed-grid .empty-state {
+      grid-column: 1 / -1;
     }
     .empty-state.compact {
-      min-height: clamp(4.5rem, 9vh, 6.4rem);
+      min-height: 0;
     }
     .empty-state h3 {
       color: white;
@@ -533,7 +616,12 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
     }
     .skeleton-card {
       background:
-        linear-gradient(90deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08)),
+        linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.08),
+          rgba(255, 255, 255, 0.18),
+          rgba(255, 255, 255, 0.08)
+        ),
         rgba(16, 27, 62, 0.36);
       background-size: 220% 100%;
     }
@@ -625,6 +713,7 @@ const PAGE_SIZE: Record<MyAdventureGroup, number> = {
 export class AdventuresPage implements OnInit {
   private readonly adventuresService = inject(MyAdventuresService);
   private readonly router = inject(Router);
+  protected readonly sectionImages = ADVENTURE_SECTION_IMAGES;
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly adventures = signal<MyAdventureViewModel[]>([]);

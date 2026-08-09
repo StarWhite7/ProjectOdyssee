@@ -53,6 +53,30 @@ describe('MyAdventuresService', () => {
       'active-1',
       'jouer',
     ]);
+    expect(result.find((adventure) => adventure.id === 'pending-1')?.route).toEqual([
+      '/aventure',
+      'pending-1',
+      'salon',
+    ]);
+  });
+
+  it('routes pending character creation adventures to the real lobby id from source data', async () => {
+    games.set([
+      summary(
+        'pending-character-real-id',
+        'Personnage en prÃ©paration',
+        'character_creation',
+        '2026-08-07T10:00:00.000Z',
+      ),
+    ]);
+
+    const service = TestBed.inject(MyAdventuresService);
+    const result = await service.load();
+
+    expect(result).toHaveLength(1);
+    expect(result[0].group).toBe('pending');
+    expect(result[0].route).toEqual(['/aventure', 'pending-character-real-id', 'salon']);
+    expect(result[0].route).not.toContain('abc123');
   });
 
   it('filters and sorts only from loaded adventure data', () => {
