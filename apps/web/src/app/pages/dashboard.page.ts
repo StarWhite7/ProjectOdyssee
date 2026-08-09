@@ -11,6 +11,7 @@ import {
 } from '../core/game-status';
 import { GameService } from '../core/game.service';
 import type { GameSummary } from '../core/game.service';
+import { NotificationsService, type NotificationViewModel } from '../core/notifications.service';
 import type { DashboardNotificationState } from '../shared/dashboard-notification';
 import {
   DASHBOARD_NOTIFICATION_MESSAGES,
@@ -222,12 +223,59 @@ export class DashboardSidebarComponent {
         <p>{{ subtitle() }}</p>
       </div>
       <div class="header-actions" aria-label="Actions du compte">
-        <button class="icon-button" type="button" aria-label="Notifications">
+        <button
+          class="icon-button notification-button"
+          type="button"
+          aria-label="Notifications"
+          [attr.aria-expanded]="notificationsOpen()"
+          (click)="toggleNotifications()"
+        >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
             <path d="M10 21a2 2 0 0 0 4 0" />
           </svg>
+          @if (unreadCount()) {
+            <span class="notification-badge">{{ unreadCount() }}</span>
+          }
         </button>
+        @if (notificationsOpen()) {
+          <section class="notifications-panel" aria-label="Notifications recentes">
+            <div class="notifications-head">
+              <h2>Notifications</h2>
+              @if (unreadCount()) {
+                <button type="button" class="mark-read-button" (click)="markAllNotificationsRead()">
+                  Tout lire
+                </button>
+              }
+            </div>
+            <div class="notifications-list">
+              @for (notification of notifications(); track notification.id) {
+                <button
+                  type="button"
+                  class="notification-row"
+                  [class.unread]="!notification.readAt"
+                  (click)="markNotificationRead(notification)"
+                >
+                  <span class="notification-avatar" aria-hidden="true">
+                    @if (notification.actorAvatarUrl) {
+                      <img [src]="notification.actorAvatarUrl" alt="" loading="lazy" />
+                    } @else {
+                      {{ notificationInitial(notification) }}
+                    }
+                  </span>
+                  <span>
+                    <strong>{{ notification.message }}</strong>
+                    @if (relativeNotificationDate(notification.createdAt); as notificationDate) {
+                      <small>{{ notificationDate }}</small>
+                    }
+                  </span>
+                </button>
+              } @empty {
+                <p>Aucune notification.</p>
+              }
+            </div>
+          </section>
+        }
         <button class="icon-button" type="button" aria-label="Messages">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 5h16v14H4z" />
@@ -268,6 +316,7 @@ export class DashboardSidebarComponent {
       line-height: 1.25;
     }
     .header-actions {
+      position: relative;
       display: flex;
       align-items: center;
       gap: clamp(0.6rem, 1vw, 0.95rem);
@@ -282,6 +331,7 @@ export class DashboardSidebarComponent {
       backdrop-filter: blur(10px);
     }
     .icon-button {
+      position: relative;
       width: clamp(2.55rem, 5.2vh, 3.2rem);
       padding: 0;
       border-radius: 50%;
@@ -295,6 +345,118 @@ export class DashboardSidebarComponent {
       stroke-width: 1.6;
       stroke-linecap: round;
       stroke-linejoin: round;
+    }
+    .notification-badge {
+      position: absolute;
+      top: -0.18rem;
+      right: -0.1rem;
+      min-width: 1.05rem;
+      height: 1.05rem;
+      padding: 0 0.25rem;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: #6758d7;
+      font-size: 0.65rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .notifications-panel {
+      position: absolute;
+      top: calc(100% + 0.7rem);
+      right: clamp(4rem, 7vw, 6rem);
+      z-index: 20;
+      width: min(22rem, calc(100vw - 2rem));
+      max-height: 24rem;
+      padding: 0.9rem;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 0.85rem;
+      color: #172448;
+      background: rgba(244, 244, 250, 0.86);
+      box-shadow: 0 18px 45px rgba(15, 23, 56, 0.24);
+      backdrop-filter: blur(14px);
+      overflow: hidden;
+    }
+    .notifications-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.65rem;
+    }
+    .notifications-head h2 {
+      margin: 0;
+      color: #172448;
+      font:
+        700 1rem / 1.1 'DM Sans',
+        sans-serif;
+    }
+    .mark-read-button {
+      min-height: 1.85rem;
+      padding: 0 0.7rem;
+      border: 0;
+      border-radius: 999px;
+      color: #fff;
+      background: linear-gradient(120deg, #7364df, #5145bd);
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+    .notifications-list {
+      max-height: 19.5rem;
+      display: grid;
+      gap: 0.5rem;
+      overflow: auto;
+    }
+    .notifications-list p {
+      margin: 0;
+      color: rgba(23, 36, 72, 0.72);
+      font-size: 0.86rem;
+    }
+    .notification-row {
+      width: 100%;
+      padding: 0.65rem;
+      border: 1px solid rgba(23, 36, 72, 0.1);
+      border-radius: 0.7rem;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 0.65rem;
+      align-items: center;
+      color: #172448;
+      background: rgba(255, 255, 255, 0.42);
+      text-align: left;
+    }
+    .notification-row.unread {
+      border-color: rgba(103, 88, 215, 0.32);
+      background: rgba(255, 255, 255, 0.68);
+    }
+    .notification-row strong {
+      display: block;
+      color: #172448;
+      font-size: 0.82rem;
+      line-height: 1.25;
+    }
+    .notification-row small {
+      display: block;
+      margin-top: 0.16rem;
+      color: rgba(23, 36, 72, 0.64);
+      font-size: 0.72rem;
+    }
+    .notification-avatar {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(145deg, #27355f, #a18b79);
+      font-weight: 800;
+      overflow: hidden;
+    }
+    .notification-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .account-chip {
       min-width: 0;
@@ -351,10 +513,69 @@ export class DashboardSidebarComponent {
     }
   `,
 })
-export class DashboardHeaderComponent {
+export class DashboardHeaderComponent implements OnInit {
+  private readonly notificationsService = inject(NotificationsService);
   readonly userName = input.required<string>();
   readonly subtitle = input.required<string>();
   readonly userInitial = computed(() => this.userName().trim().charAt(0).toUpperCase() || 'A');
+  readonly notifications = signal<NotificationViewModel[]>([]);
+  readonly notificationsOpen = signal(false);
+  readonly unreadCount = computed(
+    () => this.notifications().filter((notification) => !notification.readAt).length,
+  );
+
+  async ngOnInit(): Promise<void> {
+    await this.loadNotifications();
+  }
+
+  async toggleNotifications(): Promise<void> {
+    this.notificationsOpen.update((open) => !open);
+    if (this.notificationsOpen()) await this.loadNotifications();
+  }
+
+  async markNotificationRead(notification: NotificationViewModel): Promise<void> {
+    if (!notification.readAt) {
+      await this.notificationsService.markRead(notification);
+      await this.loadNotifications();
+    }
+  }
+
+  async markAllNotificationsRead(): Promise<void> {
+    await this.notificationsService.markAllRead();
+    await this.loadNotifications();
+  }
+
+  notificationInitial(notification: NotificationViewModel): string {
+    return notification.actorName?.trim().charAt(0).toUpperCase() || 'N';
+  }
+
+  relativeNotificationDate(value: string | null): string | null {
+    if (!value) return null;
+    const timestamp = Date.parse(value);
+    if (!Number.isFinite(timestamp)) return null;
+    const diffSeconds = Math.round((timestamp - Date.now()) / 1000);
+    const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+      ['day', 86_400],
+      ['hour', 3_600],
+      ['minute', 60],
+    ];
+    const formatter = new Intl.RelativeTimeFormat('fr-FR', { numeric: 'auto' });
+    for (const [unit, seconds] of units) {
+      if (Math.abs(diffSeconds) >= seconds) {
+        return formatter.format(Math.round(diffSeconds / seconds), unit);
+      }
+    }
+    return "a l'instant";
+  }
+
+  private async loadNotifications(): Promise<void> {
+    try {
+      this.notifications.set(await this.notificationsService.load());
+    } catch (error) {
+      console.error('Failed to load notifications', error);
+      this.notifications.set([]);
+    }
+  }
 }
 
 @Component({
@@ -518,170 +739,168 @@ export class RecentAdventureCardComponent {
   imports: [DashboardHeaderComponent, RecentAdventureCardComponent],
   template: `
     <section class="dashboard-main" aria-labelledby="dashboard-title">
-          <app-dashboard-header [userName]="userName()" [subtitle]="dashboardSubtitle()" />
+      <app-dashboard-header [userName]="userName()" [subtitle]="dashboardSubtitle()" />
 
-          @if (message()) {
-            <p class="status-message" [class.error]="error()" aria-live="polite">
-              {{ message() }}
-            </p>
-          }
+      @if (message()) {
+        <p class="status-message" [class.error]="error()" aria-live="polite">
+          {{ message() }}
+        </p>
+      }
 
-          <section class="dashboard-section current-section" aria-labelledby="current-title">
-            <h2 id="current-title">Aventure en cours</h2>
-            @if (loading()) {
-              <article class="current-card current-card-state skeleton-card" aria-live="polite">
-                <span class="state-icon skeleton-block" aria-hidden="true"></span>
-                <div class="current-copy">
-                  <span class="skeleton-line short"></span>
-                  <span class="skeleton-line title"></span>
-                  <span class="skeleton-line"></span>
-                  <span class="skeleton-line medium"></span>
-                </div>
-              </article>
-            } @else if (loadError()) {
-              <article class="current-card current-card-state">
-                <span class="state-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M12 3 2 21h20L12 3Z M12 9v5 M12 18h.01" />
-                  </svg>
-                </span>
-                <div class="current-copy">
-                  <h3>Impossible de charger vos aventures</h3>
-                  <p class="description">La récupération des données a échoué.</p>
-                  <button class="primary-action" type="button" (click)="retry()">
-                    Réessayer
-                    <span aria-hidden="true">↻</span>
-                  </button>
-                </div>
-              </article>
-            } @else {
-              <article
-                class="current-card"
-                [class.current-card-state]="!activeAdventure()"
-                [class.empty-current-card]="!activeAdventure()"
-                data-dashboard-image
-                [attr.data-image-src]="currentAdventureImage()"
-                [style.--card-image]="backgroundImage(currentAdventureImage())"
-              >
-                @if (activeAdventure(); as adventure) {
-                  <div class="current-copy">
-                    <h3>{{ adventure.title }}</h3>
-                    <p class="chapter">
-                      <span aria-hidden="true">★</span>
-                      {{ adventure.chapterLabel }} <b>·</b> {{ adventure.statusLabel }}
-                    </p>
-                    <p class="description">{{ adventure.activityLabel }}</p>
-                    <button class="primary-action" type="button" (click)="openAdventure(adventure)">
-                      Continuer l'aventure
-                      <span aria-hidden="true">▶</span>
-                    </button>
-                  </div>
-                  <div class="current-meta" aria-label="Informations de l'aventure">
-                    <strong>{{ adventure.modeLabel }}</strong>
-                    <span>{{ adventure.statusLabel }}</span>
-                  </div>
-                } @else {
-                  <span class="state-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="8" />
-                      <path d="m12 3 2 7 7 2-7 2-2 7-2-7-7-2 7-2Z" />
-                    </svg>
-                  </span>
-                  <div class="current-copy">
-                    <h3>Aucune aventure en cours</h3>
-                    <p class="description">
-                      Vous n'avez pas encore commencé d'aventure.<br />
-                      Lancez-vous dans votre première odyssée !
-                    </p>
-                    <button class="primary-action" type="button" (click)="startNewAdventure()">
-                      Commencer une aventure
-                      <span aria-hidden="true">▶</span>
-                    </button>
-                  </div>
-                }
-              </article>
-            }
-          </section>
-
-          <section class="dashboard-section create-section" aria-labelledby="create-title">
-            <article
-              class="create-card"
-              data-dashboard-image
-              [attr.data-image-src]="imagePaths.create"
-              [style.--card-image]="backgroundImage(imagePaths.create)"
-            >
-              <div class="create-copy">
-                <p class="section-label" id="create-title">Créer une nouvelle aventure</p>
-                <h2>Écrivez votre propre légende.</h2>
-                <p>
-                  Imaginez un nouveau monde, invitez un compagnon et écrivez une histoire inédite.
+      <section class="dashboard-section current-section" aria-labelledby="current-title">
+        <h2 id="current-title">Aventure en cours</h2>
+        @if (loading()) {
+          <article class="current-card current-card-state skeleton-card" aria-live="polite">
+            <span class="state-icon skeleton-block" aria-hidden="true"></span>
+            <div class="current-copy">
+              <span class="skeleton-line short"></span>
+              <span class="skeleton-line title"></span>
+              <span class="skeleton-line"></span>
+              <span class="skeleton-line medium"></span>
+            </div>
+          </article>
+        } @else if (loadError()) {
+          <article class="current-card current-card-state">
+            <span class="state-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 3 2 21h20L12 3Z M12 9v5 M12 18h.01" />
+              </svg>
+            </span>
+            <div class="current-copy">
+              <h3>Impossible de charger vos aventures</h3>
+              <p class="description">La récupération des données a échoué.</p>
+              <button class="primary-action" type="button" (click)="retry()">
+                Réessayer
+                <span aria-hidden="true">↻</span>
+              </button>
+            </div>
+          </article>
+        } @else {
+          <article
+            class="current-card"
+            [class.current-card-state]="!activeAdventure()"
+            [class.empty-current-card]="!activeAdventure()"
+            data-dashboard-image
+            [attr.data-image-src]="currentAdventureImage()"
+            [style.--card-image]="backgroundImage(currentAdventureImage())"
+          >
+            @if (activeAdventure(); as adventure) {
+              <div class="current-copy">
+                <h3>{{ adventure.title }}</h3>
+                <p class="chapter">
+                  <span aria-hidden="true">★</span>
+                  {{ adventure.chapterLabel }} <b>·</b> {{ adventure.statusLabel }}
                 </p>
-                <button
-                  class="primary-action create-action"
-                  type="button"
-                  [disabled]="busy()"
-                  (click)="startNewAdventure()"
-                >
-                  Commencer une nouvelle aventure
-                  <span aria-hidden="true">+</span>
+                <p class="description">{{ adventure.activityLabel }}</p>
+                <button class="primary-action" type="button" (click)="openAdventure(adventure)">
+                  Continuer l'aventure
+                  <span aria-hidden="true">▶</span>
                 </button>
               </div>
-            </article>
-          </section>
+              <div class="current-meta" aria-label="Informations de l'aventure">
+                <strong>{{ adventure.modeLabel }}</strong>
+                <span>{{ adventure.statusLabel }}</span>
+              </div>
+            } @else {
+              <span class="state-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="8" />
+                  <path d="m12 3 2 7 7 2-7 2-2 7-2-7-7-2 7-2Z" />
+                </svg>
+              </span>
+              <div class="current-copy">
+                <h3>Aucune aventure en cours</h3>
+                <p class="description">
+                  Vous n'avez pas encore commencé d'aventure.<br />
+                  Lancez-vous dans votre première odyssée !
+                </p>
+                <button class="primary-action" type="button" (click)="startNewAdventure()">
+                  Commencer une aventure
+                  <span aria-hidden="true">▶</span>
+                </button>
+              </div>
+            }
+          </article>
+        }
+      </section>
 
-          <section class="dashboard-section recent-section" aria-labelledby="recent-title">
-            <h2 id="recent-title">Vos dernières aventures</h2>
-            <div class="recent-grid">
-              @if (loading()) {
-                @for (item of emptySlots; track item) {
-                  <article class="recent-card-placeholder skeleton-card">
-                    <span class="recent-placeholder-icon skeleton-block"></span>
-                    <div>
-                      <span class="skeleton-line medium"></span>
-                      <span class="skeleton-line"></span>
-                    </div>
-                  </article>
-                }
-              } @else if (loadError()) {
-                <article class="recent-card-placeholder recent-empty-wide">
-                  <span class="recent-placeholder-icon" aria-hidden="true"></span>
-                  <div>
-                    <h3>Aventures indisponibles</h3>
-                    <p>Réessayez pour actualiser cette section.</p>
-                  </div>
-                </article>
-              } @else {
-                @for (adventure of recentAdventures(); track adventure.id) {
-                  <app-recent-adventure-card
-                    [adventure]="adventure"
-                    (continueAdventure)="openAdventure(adventure)"
-                  />
-                }
-                @for (item of recentPlaceholderSlots(); track item) {
-                  <article
-                    class="recent-card-placeholder"
-                    data-dashboard-image
-                    [attr.data-image-src]="imagePaths.recent1"
-                    [style.background-image]="recentPlaceholderBackground()"
-                    [style.background-size]="'cover'"
-                    [style.background-position]="'center'"
-                  >
-                    <span class="recent-placeholder-icon" aria-hidden="true"></span>
-                    <div>
-                      <h3>{{ hasAnyAdventure() ? 'Aucune autre aventure' : 'Aucune aventure' }}</h3>
-                      <p>
-                        {{
-                          hasAnyAdventure()
-                            ? 'Vos autres aventures apparaîtront ici.'
-                            : 'Vos aventures apparaîtront ici une fois que vous aurez commencé.'
-                        }}
-                      </p>
-                    </div>
-                  </article>
-                }
-              }
-            </div>
-          </section>
+      <section class="dashboard-section create-section" aria-labelledby="create-title">
+        <article
+          class="create-card"
+          data-dashboard-image
+          [attr.data-image-src]="imagePaths.create"
+          [style.--card-image]="backgroundImage(imagePaths.create)"
+        >
+          <div class="create-copy">
+            <p class="section-label" id="create-title">Créer une nouvelle aventure</p>
+            <h2>Écrivez votre propre légende.</h2>
+            <p>Imaginez un nouveau monde, invitez un compagnon et écrivez une histoire inédite.</p>
+            <button
+              class="primary-action create-action"
+              type="button"
+              [disabled]="busy()"
+              (click)="startNewAdventure()"
+            >
+              Commencer une nouvelle aventure
+              <span aria-hidden="true">+</span>
+            </button>
+          </div>
+        </article>
+      </section>
+
+      <section class="dashboard-section recent-section" aria-labelledby="recent-title">
+        <h2 id="recent-title">Vos dernières aventures</h2>
+        <div class="recent-grid">
+          @if (loading()) {
+            @for (item of emptySlots; track item) {
+              <article class="recent-card-placeholder skeleton-card">
+                <span class="recent-placeholder-icon skeleton-block"></span>
+                <div>
+                  <span class="skeleton-line medium"></span>
+                  <span class="skeleton-line"></span>
+                </div>
+              </article>
+            }
+          } @else if (loadError()) {
+            <article class="recent-card-placeholder recent-empty-wide">
+              <span class="recent-placeholder-icon" aria-hidden="true"></span>
+              <div>
+                <h3>Aventures indisponibles</h3>
+                <p>Réessayez pour actualiser cette section.</p>
+              </div>
+            </article>
+          } @else {
+            @for (adventure of recentAdventures(); track adventure.id) {
+              <app-recent-adventure-card
+                [adventure]="adventure"
+                (continueAdventure)="openAdventure(adventure)"
+              />
+            }
+            @for (item of recentPlaceholderSlots(); track item) {
+              <article
+                class="recent-card-placeholder"
+                data-dashboard-image
+                [attr.data-image-src]="imagePaths.recent1"
+                [style.background-image]="recentPlaceholderBackground()"
+                [style.background-size]="'cover'"
+                [style.background-position]="'center'"
+              >
+                <span class="recent-placeholder-icon" aria-hidden="true"></span>
+                <div>
+                  <h3>{{ hasAnyAdventure() ? 'Aucune autre aventure' : 'Aucune aventure' }}</h3>
+                  <p>
+                    {{
+                      hasAnyAdventure()
+                        ? 'Vos autres aventures apparaîtront ici.'
+                        : 'Vos aventures apparaîtront ici une fois que vous aurez commencé.'
+                    }}
+                  </p>
+                </div>
+              </article>
+            }
+          }
+        </div>
+      </section>
     </section>
   `,
   styles: `
