@@ -10,6 +10,14 @@ import {
   type SocialSearchResultViewModel,
 } from '../core/invitations.service';
 
+const INVITATION_CARD_IMAGES = {
+  findCompanion: '/images/invitations/trouver-compagnon.png',
+  toProcess: '/images/invitations/a-traiter.png',
+  pending: '/images/invitations/en-attente.png',
+  companions: '/images/invitations/mes-compagnons.png',
+  blocked: '/images/invitations/bloques.png',
+} as const;
+
 @Component({
   selector: 'app-invitations-page',
   template: `
@@ -38,10 +46,16 @@ import {
       } @else {
         <div class="page-grid">
           <div class="main-column">
-            <section class="section-panel search-panel" aria-labelledby="search-title">
+            <section
+              class="section-panel search-panel f-panel"
+              aria-labelledby="search-title"
+              [style.--bg]="background(imgs.findCompanion)"
+            >
               <div>
                 <h2 id="search-title">Trouver un compagnon</h2>
-                <p>Recherchez un joueur par pseudo pour lui envoyer une demande d'ami.</p>
+                <p class="copy-glass">
+                  Recherchez un joueur par pseudo pour lui envoyer une demande d'ami.
+                </p>
               </div>
               <label class="search-box">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -100,7 +114,11 @@ import {
               }
             </section>
 
-            <section class="section-panel" aria-labelledby="received-title">
+            <section
+              class="section-panel p-panel"
+              aria-labelledby="received-title"
+              [style.--bg]="background(imgs.toProcess)"
+            >
               <div class="section-title-row">
                 <h2 id="received-title">A traiter</h2>
                 @if (pendingReceivedCount()) {
@@ -183,15 +201,21 @@ import {
                 } @empty {
                   @if (!receivedFriendRequests().length) {
                     <article class="empty-state">
-                      <h3>Aucune invitation recue.</h3>
-                      <p>Les demandes d'amis et invitations d'aventure apparaitront ici.</p>
+                      <div class="copy-glass">
+                        <h3>Aucune invitation recue.</h3>
+                        <p>Les demandes d'amis et invitations d'aventure apparaitront ici.</p>
+                      </div>
                     </article>
                   }
                 }
               </div>
             </section>
 
-            <section class="section-panel" aria-labelledby="sent-title">
+            <section
+              class="section-panel q-panel"
+              aria-labelledby="sent-title"
+              [style.--bg]="background(imgs.pending)"
+            >
               <div class="section-title-row">
                 <h2 id="sent-title">En attente</h2>
                 @if (pendingSentCount()) {
@@ -241,7 +265,9 @@ import {
                 } @empty {
                   @if (!sentFriendRequests().length) {
                     <article class="empty-state small-empty">
-                      <h3>Aucune demande en attente.</h3>
+                      <div class="copy-glass">
+                        <h3>Aucune demande en attente.</h3>
+                      </div>
                     </article>
                   }
                 }
@@ -250,7 +276,11 @@ import {
           </div>
 
           <aside class="side-column">
-            <section class="companions-panel" aria-labelledby="companions-title">
+            <section
+              class="companions-panel c-panel"
+              aria-labelledby="companions-title"
+              [style.--bg]="background(imgs.companions)"
+            >
               <div class="section-title-row">
                 <h2 id="companions-title">Mes compagnons</h2>
                 @if (friends().length) {
@@ -313,16 +343,22 @@ import {
                   </article>
                 } @empty {
                   <article class="empty-companions">
-                    <h3>Aucun compagnon.</h3>
-                    <p>Recherchez un joueur pour commencer votre cercle social.</p>
+                    <div class="copy-glass">
+                      <h3>Aucun compagnon.</h3>
+                      <p>Recherchez un joueur pour commencer votre cercle social.</p>
+                    </div>
                   </article>
                 }
               </div>
             </section>
 
-            <section class="companions-panel blocked-panel" aria-labelledby="blocked-title">
+            <section
+              class="companions-panel b-panel"
+              aria-labelledby="blocked-title"
+              [style.--bg]="background(imgs.blocked)"
+            >
               <div class="section-title-row">
-                <h2 id="blocked-title">Bloques</h2>
+                <h2 id="blocked-title">Bloqués</h2>
                 @if (blockedUsers().length) {
                   <span class="count-badge">{{ blockedUsers().length }}</span>
                 }
@@ -341,7 +377,7 @@ import {
                     </button>
                   </article>
                 } @empty {
-                  <p class="muted">Aucun joueur bloque.</p>
+                  <p class="muted">Aucun joueur bloqués.</p>
                 }
               </div>
             </section>
@@ -415,10 +451,33 @@ import {
       min-height: 0;
       border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 0.85rem;
-      background: rgba(255, 255, 255, 0.2);
+      background-image: var(--bg, none);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
       backdrop-filter: blur(12px);
       box-shadow: 0 18px 45px rgba(15, 23, 56, 0.16);
       overflow: hidden;
+    }
+    .p-panel h2,
+    .q-panel h2,
+    .c-panel h2,
+    .b-panel h2 {
+      color: white;
+    }
+    .p-panel h2,
+    .q-panel h2 {
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+    }
+    .c-panel {
+      background-position: center 45%;
+    }
+    .b-panel {
+      --ov: linear-gradient(90deg, rgba(7, 14, 35, 0.5), rgba(7, 14, 35, 0.16));
+      background-image: var(--ov), var(--bg, none);
+    }
+    .b-panel .muted {
+      color: rgba(255, 255, 255, 0.8);
     }
     .section-panel {
       padding: clamp(0.85rem, 1.4vw, 1.25rem);
@@ -440,6 +499,17 @@ import {
       display: flex;
       align-items: center;
       gap: 0.65rem;
+    }
+    .copy-glass {
+      width: fit-content;
+      max-width: min(34rem, 92%);
+      padding: 0.7rem 0.9rem;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 0.75rem;
+      background: rgba(255, 255, 255, 0.12);
+      box-shadow: 0 8px 24px rgba(8, 15, 35, 0.14);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
     h2 {
       margin: 0;
@@ -626,6 +696,9 @@ import {
       min-height: 7rem;
       display: grid;
       align-content: center;
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
     }
     .small-empty {
       min-height: 4.5rem;
@@ -661,7 +734,7 @@ import {
       font-size: 0.75rem;
       font-weight: 700;
     }
-    .blocked-panel {
+    .b-panel {
       max-height: 13rem;
     }
     .blocked-row,
@@ -689,10 +762,8 @@ import {
       font-size: 0.8rem;
     }
     .empty-companions {
-      padding: 1rem;
-      border-radius: 0.8rem;
       color: white;
-      background: rgba(16, 27, 62, 0.32);
+      background: transparent;
     }
     .notice {
       margin: 0;
@@ -803,6 +874,7 @@ import {
 export class InvitationsPage implements OnInit, OnDestroy {
   private readonly invitations = inject(InvitationsService);
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
+  protected readonly imgs = INVITATION_CARD_IMAGES;
 
   readonly loading = signal(true);
   readonly error = signal(false);
