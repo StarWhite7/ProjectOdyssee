@@ -112,6 +112,57 @@ p {
   padding: clamp(1.2rem, 3vw, 2rem);
   box-shadow: 0 20px 70px #0005;
 }
+.account-panel {
+  display: grid;
+  gap: 0.5rem;
+}
+.account-panel .info-list {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.account-panel .info-list div {
+  min-height: 0;
+  padding: 0.35rem 0;
+}
+.account-panel :where(.stack-form, .danger-zone) {
+  margin-top: 0;
+  gap: 0.4rem;
+}
+.account-form {
+  align-items: end;
+}
+.account-email-form {
+  grid-template-columns: 1fr auto;
+}
+.account-password-form {
+  grid-template-columns: 1fr 1fr auto;
+}
+.account-panel :where(input, .secondary-button, .danger-button) {
+  min-height: 2.15rem;
+}
+.account-panel input {
+  height: 2.25rem;
+}
+.account-panel .inline-action {
+  margin-top: 0;
+  white-space: nowrap;
+}
+.account-panel .danger-zone {
+  padding-top: 0.5rem;
+}
+.account-panel .danger-zone p {
+  margin: 0;
+  line-height: 1.28;
+}
+@media (max-width: 980px) {
+  .account-panel .account-form,
+  .account-panel .info-list {
+    grid-template-columns: 1fr;
+  }
+  .account-panel .inline-action {
+    white-space: normal;
+  }
+}
 .grid {
   display: grid;
   gap: 1rem;

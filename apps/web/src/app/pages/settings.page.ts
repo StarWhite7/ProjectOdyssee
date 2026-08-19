@@ -213,7 +213,7 @@ const SECTION_ITEMS: Array<{
                 </article>
               }
               @case ('account') {
-                <article class="panel" aria-labelledby="account-section-title">
+                <article class="panel account-panel" aria-labelledby="account-section-title">
                   <div class="section-title">
                     <h2 id="account-section-title">Compte</h2>
                     <p>Vos informations de connexion viennent de Supabase Auth.</p>
@@ -235,7 +235,11 @@ const SECTION_ITEMS: Array<{
                     </div>
                   </dl>
 
-                  <form [formGroup]="emailForm" class="stack-form" (ngSubmit)="saveEmail()">
+                  <form
+                    [formGroup]="emailForm"
+                    class="stack-form account-form account-email-form"
+                    (ngSubmit)="saveEmail()"
+                  >
                     <label>
                       <span>Nouvelle adresse e-mail</span>
                       <input type="email" formControlName="email" autocomplete="email" />
@@ -250,7 +254,11 @@ const SECTION_ITEMS: Array<{
                   </form>
 
                   @if (canChangePassword()) {
-                    <form [formGroup]="passwordForm" class="stack-form" (ngSubmit)="savePassword()">
+                    <form
+                      [formGroup]="passwordForm"
+                      class="stack-form account-form account-password-form"
+                      (ngSubmit)="savePassword()"
+                    >
                       <label>
                         <span>Nouveau mot de passe</span>
                         <input
@@ -298,7 +306,11 @@ const SECTION_ITEMS: Array<{
                       serveur.
                     </p>
                     <input type="text" formControlName="confirmation" autocomplete="off" />
-                    <button class="danger-button" type="submit" [disabled]="deletingAccount()">
+                    <button
+                      class="danger-button delete-account-button"
+                      type="submit"
+                      [disabled]="!canDeleteAccount() || deletingAccount()"
+                    >
                       {{ deletingAccount() ? 'Suppression...' : 'Supprimer mon compte' }}
                     </button>
                   </form>
@@ -794,6 +806,15 @@ const SECTION_ITEMS: Array<{
       border-color: rgba(109, 26, 46, 0.18);
       background: rgba(255, 255, 255, 0.16);
     }
+    .delete-account-button:not(:disabled) {
+      color: white;
+      border-color: rgba(201, 60, 74, 0.7);
+      background: #c93c4a;
+      cursor: pointer;
+    }
+    .delete-account-button:not(:disabled):hover {
+      background: #b73240;
+    }
     .inline-action {
       margin-top: 1rem;
     }
@@ -1153,6 +1174,7 @@ export class SettingsPage implements OnInit {
   readonly profileDraftVersion = signal(0);
   readonly emailDraftVersion = signal(0);
   readonly privacyDraftVersion = signal(0);
+  readonly deleteAccountDraftVersion = signal(0);
   readonly userInitial = computed(
     () => this.profile()?.displayName.trim().charAt(0).toLocaleUpperCase('fr-FR') || '?',
   );
@@ -1184,6 +1206,10 @@ export class SettingsPage implements OnInit {
     if (!initial) return false;
     return !this.samePrivacyValue(initial, this.currentPrivacyValue());
   });
+  readonly canDeleteAccount = computed(() => {
+    this.deleteAccountDraftVersion();
+    return this.deleteAccountForm.controls.confirmation.value.trim() === 'SUPPRIMER';
+  });
 
   constructor() {
     this.profileForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
@@ -1194,6 +1220,9 @@ export class SettingsPage implements OnInit {
     });
     this.privacyForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.privacyDraftVersion.update((version) => version + 1);
+    });
+    this.deleteAccountForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.deleteAccountDraftVersion.update((version) => version + 1);
     });
   }
 
@@ -1339,12 +1368,8 @@ export class SettingsPage implements OnInit {
   }
 
   async deleteAccount(): Promise<void> {
-    if (this.deletingAccount()) return;
+    if (this.deletingAccount() || !this.canDeleteAccount()) return;
     const confirmation = this.deleteAccountForm.controls.confirmation.value.trim();
-    if (confirmation !== 'SUPPRIMER') {
-      this.showStatus('Saisissez SUPPRIMER pour confirmer la suppression.', true);
-      return;
-    }
     this.deletingAccount.set(true);
     this.clearStatus();
     try {
@@ -1491,6 +1516,7 @@ export class SettingsPage implements OnInit {
       this.deleteAccountForm.reset({ confirmation: '' });
       this.deleteAccountForm.markAsPristine();
       this.deleteAccountForm.markAsUntouched();
+      this.deleteAccountDraftVersion.update((version) => version + 1);
     } catch {
       this.loadError.set(true);
     } finally {

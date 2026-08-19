@@ -155,6 +155,89 @@ describe('SettingsPage', () => {
     expect(styles).toContain('position: absolute');
   });
 
+  it('marks the account section with compact layout classes', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.componentInstance.activeSection.set('account');
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('.account-panel')).not.toBeNull();
+    expect(element.querySelector('.account-email-form')).not.toBeNull();
+    expect(element.querySelector('.account-password-form')).not.toBeNull();
+    expect(
+      element.querySelector('.danger-zone input[formControlName="confirmation"]'),
+    ).not.toBeNull();
+  });
+
+  it('enables account deletion only with the expected confirmation', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+    page.activeSection.set('account');
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector(
+      '.delete-account-button',
+    ) as HTMLButtonElement;
+
+    expect(page.canDeleteAccount()).toBe(false);
+    expect(button.disabled).toBe(true);
+
+    page.deleteAccountForm.controls.confirmation.setValue('SUPPRIM');
+    fixture.detectChanges();
+    expect(page.canDeleteAccount()).toBe(false);
+    expect(button.disabled).toBe(true);
+
+    page.deleteAccountForm.controls.confirmation.setValue('supprimer');
+    fixture.detectChanges();
+    expect(page.canDeleteAccount()).toBe(false);
+    expect(button.disabled).toBe(true);
+
+    page.deleteAccountForm.controls.confirmation.setValue('SUPPRIMER');
+    fixture.detectChanges();
+    expect(page.canDeleteAccount()).toBe(true);
+    expect(button.disabled).toBe(false);
+
+    page.deleteAccountForm.controls.confirmation.setValue('SUPPRIMEZ');
+    fixture.detectChanges();
+    expect(page.canDeleteAccount()).toBe(false);
+    expect(button.disabled).toBe(true);
+  });
+
+  it('keeps account deletion disabled while deletion is in progress', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+    page.activeSection.set('account');
+    page.deleteAccountForm.controls.confirmation.setValue('SUPPRIMER');
+    page.deletingAccount.set(true);
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector(
+      '.delete-account-button',
+    ) as HTMLButtonElement;
+
+    expect(page.canDeleteAccount()).toBe(true);
+    expect(button.disabled).toBe(true);
+  });
+
+  it('does not trigger account deletion when confirmation is invalid', async () => {
+    const page = await render();
+
+    page.deleteAccountForm.controls.confirmation.setValue('SUPPRIM');
+    await page.deleteAccount();
+
+    expect(settings.deleteAccount).not.toHaveBeenCalled();
+
+    page.deleteAccountForm.controls.confirmation.setValue('SUPPRIMER');
+    await page.deleteAccount();
+
+    expect(settings.deleteAccount).toHaveBeenCalledWith('SUPPRIMER');
+  });
+
   it('enables account email save only when the email differs from the initial value', async () => {
     const page = await render();
 
