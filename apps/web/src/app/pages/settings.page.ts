@@ -644,32 +644,39 @@ const SECTION_ITEMS: Array<{
       gap: 0.55rem;
     }
     .banner-preview {
-      min-height: 4.2rem;
+      width: 100%;
+      height: clamp(6rem, 14vh, 8rem);
+      min-height: 6rem;
+      max-height: 8rem;
       border: 1px solid rgba(255, 255, 255, 0.22);
       border-radius: 0.75rem;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
-      gap: 0.8rem;
+      position: relative;
       overflow: hidden;
       background: rgba(23, 36, 72, 0.12);
     }
     .banner-preview img {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
-      grid-row: 1;
-      grid-column: 1 / -1;
+      object-position: center;
+      display: block;
     }
     .banner-preview > span {
+      position: relative;
+      z-index: 1;
       padding-left: 0.9rem;
       color: rgba(23, 36, 72, 0.72);
       font-weight: 800;
     }
     .banner-preview .file-action {
-      position: relative;
-      z-index: 1;
-      margin-right: 0.7rem;
+      position: absolute;
+      top: 0.7rem;
+      right: 0.7rem;
+      z-index: 2;
     }
     label {
       display: grid;

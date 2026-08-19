@@ -136,6 +136,25 @@ describe('SettingsPage', () => {
     expect(page.profileDirty()).toBe(false);
   });
 
+  it('keeps the profile banner image inside a bounded cover frame', () => {
+    const styles = (
+      SettingsPage as unknown as {
+        ɵcmp: { styles: string[] };
+      }
+    ).ɵcmp.styles.join('\n');
+
+    expect(styles).toContain('.banner-preview');
+    expect(styles).toContain('height: clamp(6rem, 14vh, 8rem)');
+    expect(styles).toContain('max-height: 8rem');
+    expect(styles).toContain('overflow: hidden');
+    expect(styles).toMatch(/\.banner-preview[\s\S]*img/);
+    expect(styles).toContain('object-fit: cover');
+    expect(styles).toContain('object-position: center');
+    expect(styles).toContain('display: block');
+    expect(styles).toMatch(/\.banner-preview[\s\S]*\.file-action/);
+    expect(styles).toContain('position: absolute');
+  });
+
   it('enables account email save only when the email differs from the initial value', async () => {
     const page = await render();
 
