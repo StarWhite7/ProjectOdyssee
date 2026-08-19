@@ -1,12 +1,33 @@
 import type { OnInit } from '@angular/core';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
-import { SettingsService, type SettingsProfile } from '../core/settings.service';
+import {
+  SettingsService,
+  type GameInvitationPolicy,
+  type FriendRequestPolicy,
+  type ProfileVisibility,
+  type SettingsProfile,
+} from '../core/settings.service';
 import { AmbientAudioService } from '../shared/ambient-audio.service';
 
 type SettingsSection = 'profile' | 'account' | 'experience' | 'privacy' | 'about';
+
+type ProfileFormValue = {
+  displayName: string;
+  bio: string;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+};
+
+type PrivacyFormValue = {
+  friendRequestPolicy: FriendRequestPolicy;
+  gameInvitationPolicy: GameInvitationPolicy;
+  profileVisibility: ProfileVisibility;
+  searchableByPseudo: boolean;
+};
 
 const SECTION_ITEMS: Array<{
   id: SettingsSection;
@@ -98,7 +119,10 @@ const SECTION_ITEMS: Array<{
             }
           </nav>
 
-          <section class="settings-content" [attr.aria-labelledby]="activeSection() + '-section-title'">
+          <section
+            class="settings-content"
+            [attr.aria-labelledby]="activeSection() + '-section-title'"
+          >
             @switch (activeSection()) {
               @case ('profile') {
                 <article class="profile-section" aria-labelledby="profile-section-title">
@@ -108,15 +132,42 @@ const SECTION_ITEMS: Array<{
                   </div>
 
                   <form [formGroup]="profileForm" class="profile-panel" (ngSubmit)="saveProfile()">
-                    <div class="avatar-frame" aria-label="Avatar du profil">
-                      @if (profile()?.avatarUrl; as avatarUrl) {
-                        <img [src]="avatarUrl" alt="" loading="lazy" />
-                      } @else {
-                        <span>{{ userInitial() }}</span>
-                      }
+                    <div class="profile-media">
+                      <div class="avatar-frame" aria-label="Avatar du profil">
+                        @if (profile()?.avatarUrl; as avatarUrl) {
+                          <img [src]="avatarUrl" alt="" loading="lazy" />
+                        } @else {
+                          <span>{{ userInitial() }}</span>
+                        }
+                      </div>
+                      <label class="file-action">
+                        {{ uploadingAvatar() ? 'Envoi...' : "Changer l'avatar" }}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          [disabled]="uploadingAvatar()"
+                          (change)="uploadImage('avatar', $event)"
+                        />
+                      </label>
                     </div>
 
                     <div class="profile-fields">
+                      <div class="banner-preview">
+                        @if (profile()?.bannerUrl; as bannerUrl) {
+                          <img [src]="bannerUrl" alt="" loading="lazy" />
+                        } @else {
+                          <span>Banniere non definie</span>
+                        }
+                        <label class="file-action compact">
+                          {{ uploadingBanner() ? 'Envoi...' : 'Changer la banniere' }}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif"
+                            [disabled]="uploadingBanner()"
+                            (change)="uploadImage('banner', $event)"
+                          />
+                        </label>
+                      </div>
                       <label>
                         <span>Pseudo</span>
                         <input
@@ -126,11 +177,18 @@ const SECTION_ITEMS: Array<{
                           maxlength="80"
                         />
                       </label>
-                      @if (profileForm.controls.displayName.invalid && profileForm.controls.displayName.touched) {
+                      @if (
+                        profileForm.controls.displayName.invalid &&
+                        profileForm.controls.displayName.touched
+                      ) {
                         <p class="field-error">Le pseudo doit contenir entre 1 et 80 caractères.</p>
                       }
+                      <label>
+                        <span>Presentation</span>
+                        <textarea formControlName="bio" maxlength="200" rows="3"></textarea>
+                      </label>
                       <p class="field-note">
-                        La présentation et la bannière ne sont pas disponibles dans le profil actuel.
+                        {{ profileForm.controls.bio.value.length }}/200 caracteres
                       </p>
                     </div>
 
@@ -138,14 +196,14 @@ const SECTION_ITEMS: Array<{
                       <button
                         class="primary-button"
                         type="submit"
-                        [disabled]="profileForm.invalid || !profileForm.dirty || savingProfile()"
+                        [disabled]="profileForm.invalid || !profileDirty() || savingProfile()"
                       >
                         {{ savingProfile() ? 'Enregistrement...' : 'Enregistrer' }}
                       </button>
                       <button
                         class="secondary-button"
                         type="button"
-                        [disabled]="!profileForm.dirty || savingProfile()"
+                        [disabled]="!profileDirty() || savingProfile()"
                         (click)="resetProfileForm()"
                       >
                         Annuler
@@ -162,7 +220,7 @@ const SECTION_ITEMS: Array<{
                   </div>
                   <dl class="info-list">
                     <div>
-                      <dt>Adresse e-mail</dt>
+                      <dt>Adresse e-mail actuelle</dt>
                       <dd>{{ profile()?.email || 'Non disponible' }}</dd>
                     </div>
                     @if (profile()?.emailConfirmed !== null) {
@@ -176,16 +234,74 @@ const SECTION_ITEMS: Array<{
                       <dd>{{ providersLabel() }}</dd>
                     </div>
                   </dl>
-                  @if (canRequestPasswordReset()) {
+
+                  <form [formGroup]="emailForm" class="stack-form" (ngSubmit)="saveEmail()">
+                    <label>
+                      <span>Nouvelle adresse e-mail</span>
+                      <input type="email" formControlName="email" autocomplete="email" />
+                    </label>
+                    <button
+                      class="secondary-button inline-action"
+                      type="submit"
+                      [disabled]="emailForm.invalid || !emailDirty() || savingEmail()"
+                    >
+                      {{ savingEmail() ? 'Envoi...' : "Changer l'e-mail" }}
+                    </button>
+                  </form>
+
+                  @if (canChangePassword()) {
+                    <form [formGroup]="passwordForm" class="stack-form" (ngSubmit)="savePassword()">
+                      <label>
+                        <span>Nouveau mot de passe</span>
+                        <input
+                          type="password"
+                          formControlName="password"
+                          autocomplete="new-password"
+                        />
+                      </label>
+                      <label>
+                        <span>Confirmer le mot de passe</span>
+                        <input
+                          type="password"
+                          formControlName="confirmPassword"
+                          autocomplete="new-password"
+                        />
+                      </label>
+                      <button
+                        class="secondary-button inline-action"
+                        type="submit"
+                        [disabled]="passwordForm.invalid || savingPassword()"
+                      >
+                        {{ savingPassword() ? 'Enregistrement...' : 'Changer le mot de passe' }}
+                      </button>
+                    </form>
                     <button
                       class="secondary-button inline-action"
                       type="button"
                       [disabled]="sendingPasswordReset()"
                       (click)="requestPasswordReset()"
                     >
-                      {{ sendingPasswordReset() ? 'Envoi...' : 'Envoyer un lien de réinitialisation' }}
+                      {{
+                        sendingPasswordReset() ? 'Envoi...' : 'Envoyer un lien de réinitialisation'
+                      }}
                     </button>
                   }
+
+                  <form
+                    [formGroup]="deleteAccountForm"
+                    class="danger-zone"
+                    (ngSubmit)="deleteAccount()"
+                  >
+                    <strong>Supprimer mon compte</strong>
+                    <p>
+                      Saisissez SUPPRIMER pour confirmer. Cette action appelle une Edge Function
+                      serveur.
+                    </p>
+                    <input type="text" formControlName="confirmation" autocomplete="off" />
+                    <button class="danger-button" type="submit" [disabled]="deletingAccount()">
+                      {{ deletingAccount() ? 'Suppression...' : 'Supprimer mon compte' }}
+                    </button>
+                  </form>
                 </article>
               }
               @case ('experience') {
@@ -226,7 +342,10 @@ const SECTION_ITEMS: Array<{
                   <div class="setting-row muted-row">
                     <div>
                       <strong>Animations</strong>
-                      <p>Les animations respectent automatiquement la préférence système de mouvement réduit.</p>
+                      <p>
+                        Les animations respectent automatiquement la préférence système de mouvement
+                        réduit.
+                      </p>
                     </div>
                     <span class="status-pill">Système</span>
                   </div>
@@ -236,22 +355,90 @@ const SECTION_ITEMS: Array<{
                 <article class="panel" aria-labelledby="privacy-section-title">
                   <div class="section-title">
                     <h2 id="privacy-section-title">Confidentialité</h2>
-                    <p>Les réglages persistants de confidentialité ne sont pas encore présents en base.</p>
+                    <p>
+                      Ces réglages sont persistés et appliqués côté serveur par les RPC sociales.
+                    </p>
                   </div>
-                  <div class="setting-row">
-                    <div>
-                      <strong>Données personnelles</strong>
-                      <p>Consultez la politique de confidentialité existante.</p>
+                  <form
+                    [formGroup]="privacyForm"
+                    class="privacy-form"
+                    (ngSubmit)="savePreferences()"
+                  >
+                    <label>
+                      <span>Demandes d'amis</span>
+                      <select formControlName="friendRequestPolicy">
+                        <option value="everyone">Tout le monde</option>
+                        <option value="nobody">Personne</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Invitations d'aventure</span>
+                      <select formControlName="gameInvitationPolicy">
+                        <option value="friends">Amis uniquement</option>
+                        <option value="nobody">Personne</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Visibilité du profil</span>
+                      <select formControlName="profileVisibility">
+                        <option value="public">Publique</option>
+                        <option value="friends">Amis uniquement</option>
+                      </select>
+                    </label>
+                    <label class="check-row">
+                      <input type="checkbox" formControlName="searchableByPseudo" />
+                      <span>Autoriser les autres joueurs à me trouver par pseudo</span>
+                    </label>
+                    <div class="form-actions horizontal">
+                      <button
+                        class="primary-button"
+                        type="submit"
+                        [disabled]="!privacyDirty() || savingPreferences()"
+                      >
+                        {{ savingPreferences() ? 'Enregistrement...' : 'Enregistrer' }}
+                      </button>
+                      <button
+                        class="secondary-button"
+                        type="button"
+                        [disabled]="!privacyDirty() || savingPreferences()"
+                        (click)="resetPrivacyForm()"
+                      >
+                        Annuler
+                      </button>
                     </div>
-                    <a class="secondary-button link-button" routerLink="/confidentialite">Consulter</a>
-                  </div>
-                  <div class="setting-row muted-row">
-                    <div>
-                      <strong>Suppression de compte</strong>
-                      <p>Aucun mécanisme backend sécurisé de suppression de compte n'existe actuellement.</p>
-                    </div>
-                    <button class="danger-button" type="button" disabled>Supprimer mon compte</button>
-                  </div>
+                  </form>
+
+                  <section class="blocked-section" aria-label="Utilisateurs bloqués">
+                    <h3>Utilisateurs bloqués</h3>
+                    @if (profile()?.blockedUsers?.length) {
+                      <div class="blocked-list">
+                        @for (blocked of profile()?.blockedUsers ?? []; track blocked.userId) {
+                          <article class="blocked-user">
+                            <span class="small-avatar" aria-hidden="true">
+                              @if (blocked.avatarUrl) {
+                                <img [src]="blocked.avatarUrl" alt="" loading="lazy" />
+                              } @else {
+                                {{ blocked.displayName.charAt(0).toLocaleUpperCase('fr-FR') }}
+                              }
+                            </span>
+                            <strong>{{ blocked.displayName }}</strong>
+                            <button
+                              class="secondary-button"
+                              type="button"
+                              [disabled]="unblockingUserId() === blocked.userId"
+                              (click)="unblockUser(blocked.userId)"
+                            >
+                              {{
+                                unblockingUserId() === blocked.userId ? 'Déblocage...' : 'Débloquer'
+                              }}
+                            </button>
+                          </article>
+                        }
+                      </div>
+                    } @else {
+                      <p class="field-note">Aucun utilisateur bloqué.</p>
+                    }
+                  </section>
                 </article>
               }
               @case ('about') {
@@ -283,7 +470,6 @@ const SECTION_ITEMS: Array<{
                 {{ statusMessage() }}
               </p>
             }
-
           </section>
         </div>
       }
@@ -315,7 +501,9 @@ const SECTION_ITEMS: Array<{
     h1 {
       margin: 0;
       color: #172448;
-      font: 600 clamp(2.25rem, 3.25vw, 3.85rem) / 0.95 'Newsreader', serif;
+      font:
+        600 clamp(2.25rem, 3.25vw, 3.85rem) / 0.95 'Newsreader',
+        serif;
       letter-spacing: 0;
     }
     .settings-header p,
@@ -403,7 +591,9 @@ const SECTION_ITEMS: Array<{
     .error-panel h2 {
       margin: 0;
       color: #172448;
-      font: 600 clamp(1.15rem, 1.5vw, 1.55rem) / 1.05 'Newsreader', serif;
+      font:
+        600 clamp(1.15rem, 1.5vw, 1.55rem) / 1.05 'Newsreader',
+        serif;
       letter-spacing: 0;
     }
     .profile-panel,
@@ -423,6 +613,11 @@ const SECTION_ITEMS: Array<{
       align-items: center;
       gap: clamp(1rem, 2.2vw, 2rem);
     }
+    .profile-media {
+      display: grid;
+      gap: 0.7rem;
+      justify-items: center;
+    }
     .avatar-frame {
       width: clamp(5rem, 8vw, 7rem);
       aspect-ratio: 1;
@@ -434,7 +629,9 @@ const SECTION_ITEMS: Array<{
       color: white;
       background: linear-gradient(145deg, #26355f, #8e7b68);
       box-shadow: 0 12px 30px rgba(18, 28, 60, 0.18);
-      font: 600 clamp(1.6rem, 3vw, 2.5rem) 'Newsreader', serif;
+      font:
+        600 clamp(1.6rem, 3vw, 2.5rem) 'Newsreader',
+        serif;
     }
     .avatar-frame img {
       width: 100%;
@@ -446,13 +643,45 @@ const SECTION_ITEMS: Array<{
       display: grid;
       gap: 0.55rem;
     }
+    .banner-preview {
+      min-height: 4.2rem;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 0.75rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.8rem;
+      overflow: hidden;
+      background: rgba(23, 36, 72, 0.12);
+    }
+    .banner-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      grid-row: 1;
+      grid-column: 1 / -1;
+    }
+    .banner-preview > span {
+      padding-left: 0.9rem;
+      color: rgba(23, 36, 72, 0.72);
+      font-weight: 800;
+    }
+    .banner-preview .file-action {
+      position: relative;
+      z-index: 1;
+      margin-right: 0.7rem;
+    }
     label {
       display: grid;
       gap: 0.45rem;
       color: #172448;
       font-weight: 800;
     }
-    input[type='text'] {
+    input[type='text'],
+    input[type='email'],
+    input[type='password'],
+    textarea,
+    select {
       width: 100%;
       min-height: 2.65rem;
       padding: 0 0.9rem;
@@ -461,6 +690,34 @@ const SECTION_ITEMS: Array<{
       color: #172448;
       background: rgba(255, 255, 255, 0.26);
       font: inherit;
+    }
+    textarea {
+      min-height: 4.8rem;
+      padding-block: 0.75rem;
+      resize: none;
+    }
+    .file-action {
+      min-height: 2.1rem;
+      padding: 0.42rem 0.85rem;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      color: #172448;
+      background: rgba(255, 255, 255, 0.24);
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+    .file-action input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .file-action.compact {
+      white-space: nowrap;
     }
     .field-note,
     .field-error {
@@ -476,6 +733,38 @@ const SECTION_ITEMS: Array<{
       display: grid;
       gap: 0.6rem;
       min-width: 9.6rem;
+    }
+    .form-actions.horizontal {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+    .stack-form,
+    .privacy-form,
+    .danger-zone {
+      margin-top: 1rem;
+      display: grid;
+      gap: 0.75rem;
+    }
+    .privacy-form {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .check-row {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-weight: 800;
+    }
+    .check-row input {
+      width: 1rem;
+      height: 1rem;
+      accent-color: #6557d2;
+    }
+    .danger-zone {
+      padding-top: 1rem;
+      border-top: 1px solid rgba(109, 26, 46, 0.18);
     }
     .primary-button,
     .secondary-button,
@@ -630,6 +919,45 @@ const SECTION_ITEMS: Array<{
       color: #443aa8;
       font-weight: 800;
     }
+    .blocked-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(23, 36, 72, 0.1);
+    }
+    .blocked-section h3 {
+      margin: 0 0 0.65rem;
+      color: #172448;
+      font:
+        600 1.05rem / 1.1 'Newsreader',
+        serif;
+    }
+    .blocked-list {
+      display: grid;
+      gap: 0.55rem;
+    }
+    .blocked-user {
+      min-height: 3.1rem;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .small-avatar {
+      width: 2.1rem;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: white;
+      background: rgba(23, 36, 72, 0.35);
+      font-weight: 800;
+    }
+    .small-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
     .status-message {
       margin: 0;
       padding: 0.65rem 0.85rem;
@@ -741,7 +1069,8 @@ const SECTION_ITEMS: Array<{
         flex-direction: column;
       }
       .settings-shell,
-      .profile-panel {
+      .profile-panel,
+      .privacy-form {
         grid-template-columns: 1fr;
       }
       .settings-shell,
@@ -768,6 +1097,7 @@ const SECTION_ITEMS: Array<{
   `,
 })
 export class SettingsPage implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly settings = inject(SettingsService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
@@ -779,25 +1109,86 @@ export class SettingsPage implements OnInit {
   readonly profile = signal<SettingsProfile | null>(null);
   readonly activeSection = signal<SettingsSection>('profile');
   readonly savingProfile = signal(false);
+  readonly savingEmail = signal(false);
+  readonly savingPassword = signal(false);
+  readonly savingPreferences = signal(false);
+  readonly uploadingAvatar = signal(false);
+  readonly uploadingBanner = signal(false);
+  readonly deletingAccount = signal(false);
+  readonly unblockingUserId = signal<string | null>(null);
   readonly sendingPasswordReset = signal(false);
   readonly signingOut = signal(false);
   readonly statusMessage = signal('');
   readonly statusIsError = signal(false);
   readonly profileForm = this.formBuilder.nonNullable.group({
     displayName: ['', [Validators.required, Validators.maxLength(80)]],
+    bio: ['', [Validators.maxLength(200)]],
   });
+  readonly emailForm = this.formBuilder.nonNullable.group({
+    email: ['', [Validators.required, Validators.email]],
+  });
+  readonly passwordForm = this.formBuilder.nonNullable.group({
+    password: ['', [Validators.required, Validators.minLength(8)]],
+    confirmPassword: ['', [Validators.required]],
+  });
+  readonly privacyForm = this.formBuilder.nonNullable.group({
+    friendRequestPolicy: ['everyone' as FriendRequestPolicy],
+    gameInvitationPolicy: ['friends' as GameInvitationPolicy],
+    profileVisibility: ['public' as ProfileVisibility],
+    searchableByPseudo: [true],
+  });
+  readonly deleteAccountForm = this.formBuilder.nonNullable.group({
+    confirmation: [''],
+  });
+  readonly initialProfile = signal<ProfileFormValue | null>(null);
+  readonly initialEmail = signal('');
+  readonly initialPrivacy = signal<PrivacyFormValue | null>(null);
+  readonly profileDraftVersion = signal(0);
+  readonly emailDraftVersion = signal(0);
+  readonly privacyDraftVersion = signal(0);
   readonly userInitial = computed(
     () => this.profile()?.displayName.trim().charAt(0).toLocaleUpperCase('fr-FR') || '?',
   );
   readonly providersLabel = computed(() => {
     const providers = this.profile()?.providers ?? [];
-    return providers.length ? providers.map((provider) => this.providerLabel(provider)).join(', ') : 'Non disponible';
+    return providers.length
+      ? providers.map((provider) => this.providerLabel(provider)).join(', ')
+      : 'Non disponible';
   });
   readonly canRequestPasswordReset = computed(() => {
     const profile = this.profile();
     if (!profile?.email) return false;
     return !profile.providers.length || profile.providers.includes('email');
   });
+  readonly canChangePassword = this.canRequestPasswordReset;
+  readonly profileDirty = computed(() => {
+    this.profileDraftVersion();
+    const initial = this.initialProfile();
+    if (!initial) return false;
+    return !this.sameProfileValue(initial, this.currentProfileValue());
+  });
+  readonly emailDirty = computed(() => {
+    this.emailDraftVersion();
+    return this.emailForm.controls.email.value.trim() !== this.initialEmail();
+  });
+  readonly privacyDirty = computed(() => {
+    this.privacyDraftVersion();
+    const initial = this.initialPrivacy();
+    if (!initial) return false;
+    return !this.samePrivacyValue(initial, this.currentPrivacyValue());
+  });
+
+  constructor() {
+    this.profileForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.profileDraftVersion.update((version) => version + 1);
+    });
+    this.emailForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.emailDraftVersion.update((version) => version + 1);
+    });
+    this.privacyForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.privacyDraftVersion.update((version) => version + 1);
+    });
+  }
 
   async ngOnInit(): Promise<void> {
     await this.load();
@@ -813,23 +1204,149 @@ export class SettingsPage implements OnInit {
   }
 
   resetProfileForm(): void {
-    this.profileForm.reset({ displayName: this.profile()?.displayName ?? '' });
+    const initial = this.initialProfile();
+    this.profileForm.reset({ displayName: initial?.displayName ?? '', bio: initial?.bio ?? '' });
+    this.profileForm.markAsPristine();
+    this.profileForm.markAsUntouched();
+    this.profileDraftVersion.update((version) => version + 1);
     this.clearStatus();
   }
 
   async saveProfile(): Promise<void> {
-    if (this.profileForm.invalid || this.savingProfile()) return;
+    if (this.profileForm.invalid || !this.profileDirty() || this.savingProfile()) return;
     this.savingProfile.set(true);
     this.clearStatus();
     try {
-      const updated = await this.settings.updateDisplayName(this.profileForm.controls.displayName.value);
+      const updated = await this.settings.updateProfile({
+        displayName: this.profileForm.controls.displayName.value,
+        bio: this.profileForm.controls.bio.value,
+      });
       this.profile.set(updated);
-      this.resetProfileForm();
+      this.applyProfileSnapshot(updated);
       this.showStatus('Profil mis à jour.');
     } catch {
       this.showStatus("Impossible d'enregistrer les modifications.", true);
     } finally {
       this.savingProfile.set(false);
+    }
+  }
+
+  async uploadImage(kind: 'avatar' | 'banner', event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    const loading = kind === 'avatar' ? this.uploadingAvatar : this.uploadingBanner;
+    if (loading()) return;
+    loading.set(true);
+    this.clearStatus();
+    try {
+      const updated = await this.settings.uploadProfileImage(kind, file);
+      this.profile.set(updated);
+      this.applyProfileSnapshot(updated);
+      this.showStatus(kind === 'avatar' ? 'Avatar mis a jour.' : 'Banniere mise a jour.');
+    } catch {
+      this.showStatus("Impossible d'envoyer cette image.", true);
+    } finally {
+      loading.set(false);
+    }
+  }
+
+  async saveEmail(): Promise<void> {
+    if (this.emailForm.invalid || !this.emailDirty() || this.savingEmail()) return;
+    this.savingEmail.set(true);
+    this.clearStatus();
+    try {
+      await this.settings.updateEmail(this.emailForm.controls.email.value);
+      this.initialEmail.set(this.emailForm.controls.email.value.trim());
+      this.emailForm.markAsPristine();
+      this.showStatus('Un e-mail de confirmation a ete envoye si Supabase le requiert.');
+    } catch {
+      this.showStatus("Impossible de modifier l'adresse e-mail.", true);
+    } finally {
+      this.savingEmail.set(false);
+    }
+  }
+
+  async savePassword(): Promise<void> {
+    if (this.passwordForm.invalid || this.savingPassword()) return;
+    const { password, confirmPassword } = this.passwordForm.getRawValue();
+    if (password !== confirmPassword) {
+      this.showStatus('Les mots de passe ne correspondent pas.', true);
+      return;
+    }
+    this.savingPassword.set(true);
+    this.clearStatus();
+    try {
+      await this.settings.updatePassword(password);
+      this.passwordForm.reset({ password: '', confirmPassword: '' });
+      this.passwordForm.markAsPristine();
+      this.showStatus('Mot de passe mis a jour.');
+    } catch {
+      this.showStatus('Impossible de modifier le mot de passe.', true);
+    } finally {
+      this.savingPassword.set(false);
+    }
+  }
+
+  resetPrivacyForm(): void {
+    const initial = this.initialPrivacy();
+    if (!initial) return;
+    this.privacyForm.reset(initial);
+    this.privacyForm.markAsPristine();
+    this.privacyForm.markAsUntouched();
+    this.privacyDraftVersion.update((version) => version + 1);
+    this.clearStatus();
+  }
+
+  async savePreferences(): Promise<void> {
+    if (!this.privacyDirty() || this.savingPreferences()) return;
+    this.savingPreferences.set(true);
+    this.clearStatus();
+    try {
+      const updated = await this.settings.updatePreferences(this.currentPrivacyValue());
+      this.profile.set(updated);
+      this.applyPrivacySnapshot(updated);
+      this.showStatus('Preferences de confidentialite enregistrees.');
+    } catch {
+      this.showStatus("Impossible d'enregistrer les preferences.", true);
+    } finally {
+      this.savingPreferences.set(false);
+    }
+  }
+
+  async unblockUser(userId: string): Promise<void> {
+    if (this.unblockingUserId()) return;
+    this.unblockingUserId.set(userId);
+    this.clearStatus();
+    try {
+      const updated = await this.settings.unblockUser(userId);
+      this.profile.set(updated);
+      this.applyPrivacySnapshot(updated);
+      this.showStatus('Utilisateur debloque.');
+    } catch {
+      this.showStatus('Impossible de debloquer cet utilisateur.', true);
+    } finally {
+      this.unblockingUserId.set(null);
+    }
+  }
+
+  async deleteAccount(): Promise<void> {
+    if (this.deletingAccount()) return;
+    const confirmation = this.deleteAccountForm.controls.confirmation.value.trim();
+    if (confirmation !== 'SUPPRIMER') {
+      this.showStatus('Saisissez SUPPRIMER pour confirmer la suppression.', true);
+      return;
+    }
+    this.deletingAccount.set(true);
+    this.clearStatus();
+    try {
+      await this.settings.deleteAccount(confirmation);
+      await this.auth.signOut();
+      await this.router.navigateByUrl('/');
+    } catch {
+      this.showStatus('Suppression du compte impossible pour le moment.', true);
+      this.deletingAccount.set(false);
     }
   }
 
@@ -871,6 +1388,82 @@ export class SettingsPage implements OnInit {
     }
   }
 
+  private applyProfileSnapshot(profile: SettingsProfile | null): void {
+    const snapshot = this.toProfileValue(profile);
+    this.initialProfile.set(snapshot);
+    this.profileForm.reset({
+      displayName: snapshot?.displayName ?? '',
+      bio: snapshot?.bio ?? '',
+    });
+    this.profileForm.markAsPristine();
+    this.profileForm.markAsUntouched();
+    this.profileDraftVersion.update((version) => version + 1);
+  }
+
+  private applyPrivacySnapshot(profile: SettingsProfile | null): void {
+    const snapshot = this.toPrivacyValue(profile);
+    this.initialPrivacy.set(snapshot);
+    if (snapshot) {
+      this.privacyForm.reset(snapshot);
+    }
+    this.privacyForm.markAsPristine();
+    this.privacyForm.markAsUntouched();
+    this.privacyDraftVersion.update((version) => version + 1);
+  }
+
+  private currentProfileValue(): ProfileFormValue {
+    const profile = this.profile();
+    return {
+      displayName: this.profileForm.controls.displayName.value.trim(),
+      bio: this.profileForm.controls.bio.value.trim(),
+      avatarUrl: profile?.avatarUrl ?? null,
+      bannerUrl: profile?.bannerUrl ?? null,
+    };
+  }
+
+  private currentPrivacyValue(): PrivacyFormValue {
+    const value = this.privacyForm.getRawValue();
+    return {
+      friendRequestPolicy: value.friendRequestPolicy,
+      gameInvitationPolicy: value.gameInvitationPolicy,
+      profileVisibility: value.profileVisibility,
+      searchableByPseudo: value.searchableByPseudo,
+    };
+  }
+
+  private toProfileValue(profile: SettingsProfile | null): ProfileFormValue | null {
+    if (!profile) return null;
+    return {
+      displayName: profile.displayName.trim(),
+      bio: profile.bio.trim(),
+      avatarUrl: profile.avatarUrl,
+      bannerUrl: profile.bannerUrl,
+    };
+  }
+
+  private toPrivacyValue(profile: SettingsProfile | null): PrivacyFormValue | null {
+    if (!profile) return null;
+    return { ...profile.preferences };
+  }
+
+  private sameProfileValue(left: ProfileFormValue, right: ProfileFormValue): boolean {
+    return (
+      left.displayName === right.displayName &&
+      left.bio === right.bio &&
+      left.avatarUrl === right.avatarUrl &&
+      left.bannerUrl === right.bannerUrl
+    );
+  }
+
+  private samePrivacyValue(left: PrivacyFormValue, right: PrivacyFormValue): boolean {
+    return (
+      left.friendRequestPolicy === right.friendRequestPolicy &&
+      left.gameInvitationPolicy === right.gameInvitationPolicy &&
+      left.profileVisibility === right.profileVisibility &&
+      left.searchableByPseudo === right.searchableByPseudo
+    );
+  }
+
   private async load(): Promise<void> {
     this.loading.set(true);
     this.loadError.set(false);
@@ -878,7 +1471,19 @@ export class SettingsPage implements OnInit {
     try {
       const profile = await this.settings.load();
       this.profile.set(profile);
-      this.profileForm.reset({ displayName: profile?.displayName ?? '' });
+      this.applyProfileSnapshot(profile);
+      this.emailForm.reset({ email: profile?.email ?? '' });
+      this.initialEmail.set(profile?.email ?? '');
+      this.emailForm.markAsPristine();
+      this.emailForm.markAsUntouched();
+      this.emailDraftVersion.update((version) => version + 1);
+      this.passwordForm.reset({ password: '', confirmPassword: '' });
+      this.passwordForm.markAsPristine();
+      this.passwordForm.markAsUntouched();
+      this.applyPrivacySnapshot(profile);
+      this.deleteAccountForm.reset({ confirmation: '' });
+      this.deleteAccountForm.markAsPristine();
+      this.deleteAccountForm.markAsUntouched();
     } catch {
       this.loadError.set(true);
     } finally {

@@ -1,7 +1,7 @@
 begin;
 -- Run with: supabase test db (after creating three Auth fixtures in a local stack).
 -- These assertions are documented executable probes for the critical policies.
-select plan(62);
+select plan(71);
 select has_table('public','games','games exists');
 select has_table('public','player_decisions','decisions exist');
 select col_is_unique('public','player_decisions',array['turn_id','player_id'],'one decision per player and turn');
@@ -46,11 +46,16 @@ select has_table('public','friendships','friendships exists');
 select has_table('public','user_blocks','user blocks exists');
 select has_table('public','game_invitations','game invitations exists');
 select has_table('public','notifications','notifications exists');
+select has_table('public','user_preferences','user preferences exists');
 select policies_are('public','friend_requests',array['friend_requests_read_participants'],'friend requests are only directly readable by participants');
 select policies_are('public','friendships',array['friendships_read_participants'],'friendships are only directly readable by participants');
 select policies_are('public','user_blocks',array['blocks_delete_own','blocks_insert_own','blocks_read_own'],'blocks are owned by blocker');
 select policies_are('public','game_invitations',array['game_invitations_read_participants'],'game invitations are only directly readable by participants');
 select policies_are('public','notifications',array['notifications_read_own','notifications_update_own_read_state'],'notifications are owned by recipient');
+select policies_are('public','user_preferences',array['user_preferences_insert_own','user_preferences_read_own','user_preferences_update_own'],'preferences are owned by the current user');
+select ok(has_table_privilege('authenticated','public.user_preferences','SELECT') and has_table_privilege('authenticated','public.user_preferences','UPDATE'),'authenticated users can read and update only their own preferences through RLS');
+select ok(exists(select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_update_self' and cmd='UPDATE' and roles='{authenticated}' and qual='(id = auth.uid())' and with_check='(id = auth.uid())'),'profile self-update policy is restricted to auth.uid');
+select ok(has_column_privilege('authenticated','public.profiles','display_name','UPDATE') and has_column_privilege('authenticated','public.profiles','avatar_url','UPDATE') and has_column_privilege('authenticated','public.profiles','bio','UPDATE') and has_column_privilege('authenticated','public.profiles','banner_url','UPDATE') and has_column_privilege('authenticated','public.profiles','updated_at','UPDATE'),'authenticated users can update only editable profile columns through RLS');
 select function_privs_are('public','search_social_profiles',array['text','integer'],'authenticated',array['EXECUTE'],'profile search is exposed through authenticated RPC');
 select function_privs_are('public','send_friend_request',array['uuid'],'authenticated',array['EXECUTE'],'friend request sending is exposed through authenticated RPC');
 select function_privs_are('public','accept_friend_request',array['uuid'],'authenticated',array['EXECUTE'],'friend request acceptance is exposed through authenticated RPC');
@@ -59,10 +64,14 @@ select function_privs_are('public','accept_game_invitation',array['uuid'],'authe
 select function_privs_are('public','get_my_notifications',array['integer'],'authenticated',array['EXECUTE'],'notification reads are exposed through authenticated RPC');
 select ok(position('target_user_id = current_user_id' in pg_get_functiondef('public.send_friend_request(uuid)'::regprocedure))>0,'friend requests reject self-add');
 select ok(position('public.is_blocked_between(current_user_id, target_user_id)' in pg_get_functiondef('public.send_friend_request(uuid)'::regprocedure))>0,'friend requests reject blocked interactions');
+select ok(position('friend_request_policy = ''nobody''' in pg_get_functiondef('public.send_friend_request(uuid)'::regprocedure))>0,'friend requests respect recipient preference server-side');
 select ok(position('public.are_friends(current_user_id, target_user_id)' in pg_get_functiondef('public.send_friend_request(uuid)'::regprocedure))>0,'friend requests reject already-friends duplicates');
 select ok(position('for update' in lower(pg_get_functiondef('public.accept_game_invitation(uuid)'::regprocedure)))>0,'game invitation acceptance locks pending invitation and game');
 select ok(position('active_players >= 2' in pg_get_functiondef('public.send_game_invitation(uuid,uuid)'::regprocedure))>0,'game invitations reject full games');
 select ok(position('not public.are_friends(current_user_id, target_user_id)' in pg_get_functiondef('public.send_game_invitation(uuid,uuid)'::regprocedure))>0,'game invitations require friendship');
+select ok(position('game_invitation_policy = ''nobody''' in pg_get_functiondef('public.send_game_invitation(uuid,uuid)'::regprocedure))>0,'game invitations respect recipient preference server-side');
+select ok(position('searchable_by_pseudo is true' in pg_get_functiondef('public.search_social_profiles(text,integer)'::regprocedure))>0,'profile search respects pseudo discoverability server-side');
+select ok(position('profile_visibility = ''public''' in pg_get_functiondef('public.search_social_profiles(text,integer)'::regprocedure))>0,'profile search respects profile visibility server-side');
 select ok(exists(select 1 from pg_indexes where schemaname='public' and indexname='game_invitations_pending_game_recipient_unique'),'duplicate pending game invitations are constrained');
 select * from finish();
 rollback;
