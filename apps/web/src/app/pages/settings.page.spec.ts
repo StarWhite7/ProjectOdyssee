@@ -68,7 +68,6 @@ describe('SettingsPage', () => {
         {
           provide: AuthService,
           useValue: {
-            resetPassword: vi.fn(),
             signOut: vi.fn(),
           },
         },
@@ -166,6 +165,8 @@ describe('SettingsPage', () => {
     expect(element.querySelector('.account-panel')).not.toBeNull();
     expect(element.querySelector('.account-email-form')).not.toBeNull();
     expect(element.querySelector('.account-password-form')).not.toBeNull();
+    expect(element.textContent).not.toContain('Envoyer un lien de réinitialisation');
+    expect(element.textContent).toContain('Changer le mot de passe');
     expect(
       element.querySelector('.danger-zone input[formControlName="confirmation"]'),
     ).not.toBeNull();
@@ -254,6 +255,19 @@ describe('SettingsPage', () => {
 
     expect(settings.updateEmail).toHaveBeenCalledWith('new@example.com');
     expect(page.emailDirty()).toBe(false);
+  });
+
+  it('keeps direct password change available from the account section', async () => {
+    const page = await render();
+
+    page.passwordForm.setValue({
+      password: 'nouveau-secret',
+      confirmPassword: 'nouveau-secret',
+    });
+    await page.savePassword();
+
+    expect(settings.updatePassword).toHaveBeenCalledWith('nouveau-secret');
+    expect(page.passwordForm.getRawValue()).toEqual({ password: '', confirmPassword: '' });
   });
 
   it('enables privacy save only when preferences differ from the initial snapshot', async () => {

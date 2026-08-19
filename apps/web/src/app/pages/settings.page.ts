@@ -283,16 +283,6 @@ const SECTION_ITEMS: Array<{
                         {{ savingPassword() ? 'Enregistrement...' : 'Changer le mot de passe' }}
                       </button>
                     </form>
-                    <button
-                      class="secondary-button inline-action"
-                      type="button"
-                      [disabled]="sendingPasswordReset()"
-                      (click)="requestPasswordReset()"
-                    >
-                      {{
-                        sendingPasswordReset() ? 'Envoi...' : 'Envoyer un lien de réinitialisation'
-                      }}
-                    </button>
                   }
 
                   <form
@@ -1144,7 +1134,6 @@ export class SettingsPage implements OnInit {
   readonly uploadingBanner = signal(false);
   readonly deletingAccount = signal(false);
   readonly unblockingUserId = signal<string | null>(null);
-  readonly sendingPasswordReset = signal(false);
   readonly signingOut = signal(false);
   readonly statusMessage = signal('');
   readonly statusIsError = signal(false);
@@ -1379,21 +1368,6 @@ export class SettingsPage implements OnInit {
     } catch {
       this.showStatus('Suppression du compte impossible pour le moment.', true);
       this.deletingAccount.set(false);
-    }
-  }
-
-  async requestPasswordReset(): Promise<void> {
-    const email = this.profile()?.email;
-    if (!email || this.sendingPasswordReset()) return;
-    this.sendingPasswordReset.set(true);
-    this.clearStatus();
-    try {
-      await this.auth.resetPassword(email);
-      this.showStatus('Lien de réinitialisation envoyé si ce compte peut le recevoir.');
-    } catch {
-      this.showStatus("Impossible d'envoyer le lien de réinitialisation.", true);
-    } finally {
-      this.sendingPasswordReset.set(false);
     }
   }
 
