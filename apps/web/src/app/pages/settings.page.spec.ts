@@ -154,6 +154,49 @@ describe('SettingsPage', () => {
     expect(styles).toContain('position: absolute');
   });
 
+  it('maps every settings section to its decorative background image', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const expectations = [
+      ['profile', 'url(/images/settings/profil.png)'],
+      ['account', 'url(/images/settings/compte.png)'],
+      ['experience', 'url(/images/settings/experience.png)'],
+      ['privacy', 'url(/images/settings/confidentialite.png)'],
+      ['about', 'url(/images/settings/a-propos.png)'],
+    ] as const;
+
+    for (const [section, background] of expectations) {
+      fixture.componentInstance.activeSection.set(section);
+      fixture.detectChanges();
+
+      const card = fixture.nativeElement.querySelector('.settings-bg-card') as HTMLElement;
+      const activeNavButton = fixture.nativeElement.querySelector(
+        '.settings-nav button.active',
+      ) as HTMLElement;
+      expect(fixture.componentInstance.settingsBackground(section)).toBe(background);
+      expect(card).not.toBeNull();
+      expect(card.style.getPropertyValue('--settings-bg')).toBe(background);
+      expect(activeNavButton).not.toBeNull();
+      expect(activeNavButton.style.getPropertyValue('--settings-bg')).toBe(background);
+    }
+  });
+
+  it('renders the about section as two separated cards', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.componentInstance.activeSection.set('about');
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('.settings-bg-card--about .about-content')).not.toBeNull();
+    expect(element.querySelector('.settings-bg-card--about .about-main-card')).not.toBeNull();
+    expect(element.querySelector('.settings-bg-card--about .about-links-card')).not.toBeNull();
+    expect(element.querySelector('.settings-bg-card--about .about-links')).not.toBeNull();
+  });
+
   it('marks the account section with compact layout classes', async () => {
     const fixture = TestBed.createComponent(SettingsPage);
     fixture.detectChanges();

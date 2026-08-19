@@ -67,6 +67,14 @@ const SECTION_ITEMS: Array<{
   },
 ];
 
+const SETTINGS_SECTION_IMAGES: Record<SettingsSection, string> = {
+  profile: '/images/settings/profil.png',
+  account: '/images/settings/compte.png',
+  experience: '/images/settings/experience.png',
+  privacy: '/images/settings/confidentialite.png',
+  about: '/images/settings/a-propos.png',
+} as const;
+
 @Component({
   selector: 'app-settings-page',
   imports: [ReactiveFormsModule, RouterLink],
@@ -109,6 +117,7 @@ const SECTION_ITEMS: Array<{
                 type="button"
                 [class.active]="activeSection() === item.id"
                 [attr.aria-current]="activeSection() === item.id ? 'page' : null"
+                [style.--settings-bg]="settingsBackground(item.id)"
                 (click)="selectSection(item.id)"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -125,7 +134,11 @@ const SECTION_ITEMS: Array<{
           >
             @switch (activeSection()) {
               @case ('profile') {
-                <article class="profile-section" aria-labelledby="profile-section-title">
+                <article
+                  class="profile-section settings-bg-card settings-bg-card--profile"
+                  aria-labelledby="profile-section-title"
+                  [style.--settings-bg]="settingsBackground('profile')"
+                >
                   <div class="section-title">
                     <h2 id="profile-section-title">Profil</h2>
                     <p>Vos informations visibles par vos compagnons d'aventure.</p>
@@ -213,7 +226,11 @@ const SECTION_ITEMS: Array<{
                 </article>
               }
               @case ('account') {
-                <article class="panel account-panel" aria-labelledby="account-section-title">
+                <article
+                  class="panel account-panel settings-bg-card settings-bg-card--account"
+                  aria-labelledby="account-section-title"
+                  [style.--settings-bg]="settingsBackground('account')"
+                >
                   <div class="section-title">
                     <h2 id="account-section-title">Compte</h2>
                     <p>Vos informations de connexion viennent de Supabase Auth.</p>
@@ -307,7 +324,11 @@ const SECTION_ITEMS: Array<{
                 </article>
               }
               @case ('experience') {
-                <article class="panel" aria-labelledby="experience-section-title">
+                <article
+                  class="panel settings-bg-card settings-bg-card--experience"
+                  aria-labelledby="experience-section-title"
+                  [style.--settings-bg]="settingsBackground('experience')"
+                >
                   <div class="section-title">
                     <h2 id="experience-section-title">Expérience</h2>
                     <p>Ces réglages utilisent le même état que le lecteur audio global.</p>
@@ -354,7 +375,11 @@ const SECTION_ITEMS: Array<{
                 </article>
               }
               @case ('privacy') {
-                <article class="panel" aria-labelledby="privacy-section-title">
+                <article
+                  class="panel settings-bg-card settings-bg-card--privacy"
+                  aria-labelledby="privacy-section-title"
+                  [style.--settings-bg]="settingsBackground('privacy')"
+                >
                   <div class="section-title">
                     <h2 id="privacy-section-title">Confidentialité</h2>
                     <p>
@@ -444,24 +469,34 @@ const SECTION_ITEMS: Array<{
                 </article>
               }
               @case ('about') {
-                <article class="panel" aria-labelledby="about-section-title">
-                  <div class="section-title">
-                    <h2 id="about-section-title">À propos de Nerys</h2>
-                    <p>Informations sur l'application et les liens utiles.</p>
-                  </div>
-                  <dl class="info-list">
-                    <div>
-                      <dt>Application</dt>
-                      <dd>Nerys</dd>
+                <article
+                  class="panel settings-bg-card settings-bg-card--about"
+                  aria-labelledby="about-section-title"
+                  [style.--settings-bg]="settingsBackground('about')"
+                >
+                  <div class="about-content">
+                    <div class="about-main-card">
+                      <div class="section-title">
+                        <h2 id="about-section-title">À propos de Nerys</h2>
+                        <p>Informations sur l'application et les liens utiles.</p>
+                      </div>
+                      <dl class="info-list">
+                        <div>
+                          <dt>Application</dt>
+                          <dd>Nerys</dd>
+                        </div>
+                        <div>
+                          <dt>Version</dt>
+                          <dd>{{ profile()?.appVersion }}</dd>
+                        </div>
+                      </dl>
                     </div>
-                    <div>
-                      <dt>Version</dt>
-                      <dd>{{ profile()?.appVersion }}</dd>
-                    </div>
-                  </dl>
-                  <div class="links-row">
-                    <a routerLink="/conditions-utilisation">Conditions d'utilisation</a>
-                    <a routerLink="/confidentialite">Politique de confidentialité</a>
+                    <nav class="about-links-card" aria-label="Liens utiles et légaux">
+                      <div class="links-row about-links">
+                        <a routerLink="/conditions-utilisation">Conditions d'utilisation</a>
+                        <a routerLink="/confidentialite">Politique de confidentialité</a>
+                      </div>
+                    </nav>
                   </div>
                 </article>
               }
@@ -571,14 +606,35 @@ const SECTION_ITEMS: Array<{
       align-items: center;
       gap: 0.85rem;
       text-align: left;
-      background: transparent;
-      border-color: transparent;
+      background-color: rgba(255, 255, 255, 0.16);
+      background-image:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.16)),
+        var(--settings-bg);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      border-color: rgba(255, 255, 255, 0.14);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
     }
     .settings-nav button.active {
       color: #352c92;
-      background: rgba(255, 255, 255, 0.34);
-      border-color: rgba(255, 255, 255, 0.24);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+      background-color: rgba(255, 255, 255, 0.2);
+      background-image:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.2)),
+        var(--settings-bg);
+      border-color: rgba(255, 255, 255, 0.72);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.28),
+        0 0 0 1px rgba(255, 255, 255, 0.22);
+    }
+    .settings-nav button span {
+      width: fit-content;
+      max-width: 100%;
+      padding: 0.12rem 0.28rem;
+      border-radius: 0.35rem;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
     }
     .settings-content {
       min-height: 0;
@@ -598,6 +654,7 @@ const SECTION_ITEMS: Array<{
         serif;
       letter-spacing: 0;
     }
+    .profile-section,
     .profile-panel,
     .panel,
     .error-panel {
@@ -609,11 +666,138 @@ const SECTION_ITEMS: Array<{
       box-shadow: 0 18px 45px rgba(15, 23, 56, 0.12);
       backdrop-filter: blur(14px);
     }
+    .settings-bg-card {
+      overflow: hidden;
+      background-color: transparent;
+      background-image: var(--settings-bg);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      backdrop-filter: none;
+    }
+    .settings-bg-card--profile {
+      background-position: center right;
+    }
+    .settings-bg-card--account {
+      background-position: center;
+    }
+    .settings-bg-card--experience {
+      background-position: center;
+    }
+    .settings-bg-card--privacy {
+      background-position: center;
+    }
+    .settings-bg-card--about {
+      background-position: center;
+    }
+    .settings-bg-card--about {
+      display: block;
+    }
+    .about-content {
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(0.75rem, 1.2vh, 1rem);
+    }
+    .about-main-card,
+    .about-links-card {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 0.8rem;
+      background: rgba(245, 248, 255, 0.26);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      box-shadow: 0 12px 32px rgba(15, 23, 56, 0.1);
+    }
+    .about-main-card {
+      padding: clamp(0.8rem, 1.2vh, 1.1rem);
+      display: grid;
+      gap: clamp(0.65rem, 1vh, 0.85rem);
+    }
+    .about-links-card {
+      flex: 0 0 auto;
+      padding: clamp(0.55rem, 0.8vh, 0.75rem);
+    }
+    .settings-bg-card.settings-bg-card--about .section-title,
+    .settings-bg-card.settings-bg-card--about .info-list,
+    .settings-bg-card.settings-bg-card--about .links-row {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    .settings-bg-card.settings-bg-card--about .info-list {
+      gap: clamp(0.45rem, 0.8vh, 0.65rem);
+    }
+    .settings-bg-card.settings-bg-card--about .info-list div {
+      min-height: 0;
+      padding: clamp(0.35rem, 0.7vh, 0.55rem) 0;
+    }
+    .about-links {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: clamp(0.75rem, 1.4vw, 1rem);
+    }
+    .settings-bg-card .section-title,
+    .settings-bg-card .info-list,
+    .settings-bg-card .stack-form,
+    .settings-bg-card .privacy-form,
+    .settings-bg-card .danger-zone,
+    .settings-bg-card .setting-row,
+    .settings-bg-card .volume-row,
+    .settings-bg-card .links-row,
+    .settings-bg-card .blocked-section {
+      padding: clamp(0.65rem, 1.25vh, 0.95rem);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 0.75rem;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+    }
+    .settings-bg-card--privacy .section-title,
+    .settings-bg-card--privacy .privacy-form,
+    .settings-bg-card--privacy .blocked-section {
+      background: rgba(8, 13, 28, 0.18);
+    }
+    .settings-bg-card--privacy,
+    .settings-bg-card--privacy .section-title h2,
+    .settings-bg-card--privacy .section-title p,
+    .settings-bg-card--privacy .privacy-form label,
+    .settings-bg-card--privacy .privacy-form span,
+    .settings-bg-card--privacy .privacy-form strong,
+    .settings-bg-card--privacy .privacy-form select,
+    .settings-bg-card--privacy .privacy-form option,
+    .settings-bg-card--privacy .check-row,
+    .settings-bg-card--privacy .blocked-section h3,
+    .settings-bg-card--privacy .blocked-section p,
+    .settings-bg-card--privacy .field-note {
+      color: white;
+    }
+    .settings-bg-card--privacy .privacy-form select {
+      background: rgba(8, 13, 28, 0.34);
+    }
+    .settings-bg-card--privacy .privacy-form option {
+      background: #11182e;
+    }
+    .settings-bg-card .setting-row,
+    .settings-bg-card .volume-row {
+      margin-top: 0.75rem;
+    }
+    .settings-bg-card .section-title p {
+      max-width: 34rem;
+    }
     .profile-panel {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr) auto;
       align-items: center;
       gap: clamp(1rem, 2.2vw, 2rem);
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
     }
     .profile-media {
       display: grid;
@@ -1035,6 +1219,7 @@ const SECTION_ITEMS: Array<{
         line-height: 1.32;
       }
       .profile-panel,
+      .profile-section,
       .panel {
         padding: 1rem;
       }
@@ -1173,12 +1358,11 @@ export class SettingsPage implements OnInit {
       ? providers.map((provider) => this.providerLabel(provider)).join(', ')
       : 'Non disponible';
   });
-  readonly canRequestPasswordReset = computed(() => {
+  readonly canChangePassword = computed(() => {
     const profile = this.profile();
     if (!profile?.email) return false;
     return !profile.providers.length || profile.providers.includes('email');
   });
-  readonly canChangePassword = this.canRequestPasswordReset;
   readonly profileDirty = computed(() => {
     this.profileDraftVersion();
     const initial = this.initialProfile();
@@ -1226,6 +1410,10 @@ export class SettingsPage implements OnInit {
   selectSection(section: SettingsSection): void {
     this.activeSection.set(section);
     this.clearStatus();
+  }
+
+  settingsBackground(section: SettingsSection): string {
+    return `url(${SETTINGS_SECTION_IMAGES[section]})`;
   }
 
   resetProfileForm(): void {
