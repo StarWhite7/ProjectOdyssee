@@ -250,26 +250,67 @@ export class DashboardSidebarComponent {
             </div>
             <div class="notifications-list">
               @for (notification of notifications(); track notification.id) {
-                <button
-                  type="button"
-                  class="notification-row"
-                  [class.unread]="!notification.readAt"
-                  (click)="markNotificationRead(notification)"
-                >
-                  <span class="notification-avatar" aria-hidden="true">
-                    @if (notification.actorAvatarUrl) {
-                      <img [src]="notification.actorAvatarUrl" alt="" loading="lazy" />
-                    } @else {
-                      {{ notificationInitial(notification) }}
-                    }
-                  </span>
-                  <span>
-                    <strong>{{ notification.message }}</strong>
-                    @if (relativeNotificationDate(notification.createdAt); as notificationDate) {
-                      <small>{{ notificationDate }}</small>
-                    }
-                  </span>
-                </button>
+                @if (notification.canRespondToGameInvitation) {
+                  <article
+                    class="notification-row interactive"
+                    [class.unread]="!notification.readAt"
+                  >
+                    <span class="notification-avatar" aria-hidden="true">
+                      @if (notification.actorAvatarUrl) {
+                        <img [src]="notification.actorAvatarUrl" alt="" loading="lazy" />
+                      } @else {
+                        {{ notificationInitial(notification) }}
+                      }
+                    </span>
+                    <span>
+                      <strong>{{ notification.message }}</strong>
+                      @if (notification.gameTitle) {
+                        <em>{{ notification.gameTitle }}</em>
+                      }
+                      @if (relativeNotificationDate(notification.createdAt); as notificationDate) {
+                        <small>{{ notificationDate }}</small>
+                      }
+                    </span>
+                    <span class="notification-actions">
+                      <button
+                        type="button"
+                        [disabled]="processingNotificationId() === notification.id"
+                        (click)="acceptGameInvitationNotification(notification)"
+                      >
+                        Rejoindre
+                      </button>
+                      <button
+                        type="button"
+                        class="ghost"
+                        [disabled]="processingNotificationId() === notification.id"
+                        (click)="declineGameInvitationNotification(notification)"
+                      >
+                        Refuser
+                      </button>
+                    </span>
+                  </article>
+                } @else {
+                  <button
+                    type="button"
+                    class="notification-row"
+                    [class.unread]="!notification.readAt"
+                    (click)="markNotificationRead(notification)"
+                  >
+                    <span class="notification-avatar" aria-hidden="true">
+                      @if (notification.actorAvatarUrl) {
+                        <img [src]="notification.actorAvatarUrl" alt="" loading="lazy" />
+                      } @else {
+                        {{ notificationInitial(notification) }}
+                      }
+                    </span>
+                    <span>
+                      <strong>{{ notification.message }}</strong>
+                      @if (relativeNotificationDate(notification.createdAt); as notificationDate) {
+                        <small>{{ notificationDate }}</small>
+                      }
+                    </span>
+                  </button>
+                }
               } @empty {
                 <p>Aucune notification.</p>
               }
@@ -426,6 +467,10 @@ export class DashboardSidebarComponent {
       background: rgba(255, 255, 255, 0.42);
       text-align: left;
     }
+    .notification-row.interactive {
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: start;
+    }
     .notification-row.unread {
       border-color: rgba(103, 88, 215, 0.32);
       background: rgba(255, 255, 255, 0.68);
@@ -441,6 +486,35 @@ export class DashboardSidebarComponent {
       margin-top: 0.16rem;
       color: rgba(23, 36, 72, 0.64);
       font-size: 0.72rem;
+    }
+    .notification-row em {
+      display: block;
+      margin-top: 0.2rem;
+      color: rgba(23, 36, 72, 0.82);
+      font-style: normal;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .notification-actions {
+      grid-column: 2;
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+    .notification-actions button {
+      min-height: 1.85rem;
+      padding: 0 0.7rem;
+      border: 0;
+      border-radius: 999px;
+      color: white;
+      background: linear-gradient(120deg, #7364df, #5145bd);
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+    .notification-actions button.ghost {
+      color: #172448;
+      background: rgba(23, 36, 72, 0.08);
+      border: 1px solid rgba(23, 36, 72, 0.16);
     }
     .notification-avatar {
       width: 2rem;
@@ -515,11 +589,13 @@ export class DashboardSidebarComponent {
 })
 export class DashboardHeaderComponent implements OnInit {
   private readonly notificationsService = inject(NotificationsService);
+  private readonly router = inject(Router);
   readonly userName = input.required<string>();
   readonly subtitle = input.required<string>();
   readonly userInitial = computed(() => this.userName().trim().charAt(0).toUpperCase() || 'A');
   readonly notifications = signal<NotificationViewModel[]>([]);
   readonly notificationsOpen = signal(false);
+  readonly processingNotificationId = signal<string | null>(null);
   readonly unreadCount = computed(
     () => this.notifications().filter((notification) => !notification.readAt).length,
   );
@@ -543,6 +619,35 @@ export class DashboardHeaderComponent implements OnInit {
   async markAllNotificationsRead(): Promise<void> {
     await this.notificationsService.markAllRead();
     await this.loadNotifications();
+  }
+
+  async acceptGameInvitationNotification(notification: NotificationViewModel): Promise<void> {
+    if (!notification.canRespondToGameInvitation || this.processingNotificationId()) return;
+    this.processingNotificationId.set(notification.id);
+    try {
+      const gameId = await this.notificationsService.acceptGameInvitation(notification);
+      this.notifications.update((items) => items.filter((item) => item.id !== notification.id));
+      await this.router.navigate(['/aventure', gameId, 'salon']);
+    } catch (error) {
+      console.error('Failed to accept game invitation notification', error);
+      await this.loadNotifications();
+    } finally {
+      this.processingNotificationId.set(null);
+    }
+  }
+
+  async declineGameInvitationNotification(notification: NotificationViewModel): Promise<void> {
+    if (!notification.canRespondToGameInvitation || this.processingNotificationId()) return;
+    this.processingNotificationId.set(notification.id);
+    try {
+      await this.notificationsService.declineGameInvitation(notification);
+      this.notifications.update((items) => items.filter((item) => item.id !== notification.id));
+    } catch (error) {
+      console.error('Failed to decline game invitation notification', error);
+      await this.loadNotifications();
+    } finally {
+      this.processingNotificationId.set(null);
+    }
   }
 
   notificationInitial(notification: NotificationViewModel): string {

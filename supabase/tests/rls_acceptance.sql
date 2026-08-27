@@ -1,7 +1,7 @@
 begin;
 -- Run with: supabase test db (after creating three Auth fixtures in a local stack).
 -- These assertions are documented executable probes for the critical policies.
-select plan(71);
+select plan(73);
 select has_table('public','games','games exists');
 select has_table('public','player_decisions','decisions exist');
 select col_is_unique('public','player_decisions',array['turn_id','player_id'],'one decision per player and turn');
@@ -70,6 +70,8 @@ select ok(position('for update' in lower(pg_get_functiondef('public.accept_game_
 select ok(position('active_players >= 2' in pg_get_functiondef('public.send_game_invitation(uuid,uuid)'::regprocedure))>0,'game invitations reject full games');
 select ok(position('not public.are_friends(current_user_id, target_user_id)' in pg_get_functiondef('public.send_game_invitation(uuid,uuid)'::regprocedure))>0,'game invitations require friendship');
 select ok(position('game_invitation_policy = ''nobody''' in pg_get_functiondef('public.send_game_invitation(uuid,uuid)'::regprocedure))>0,'game invitations respect recipient preference server-side');
+select ok(position('notification.game_invitation_id' in pg_get_functiondef('public.get_my_notifications(integer)'::regprocedure))>0,'notifications expose game invitation id for interactive actions');
+select ok(position('invitation.status' in pg_get_functiondef('public.get_my_notifications(integer)'::regprocedure))>0,'notifications expose game invitation status for pending actions');
 select ok(position('searchable_by_pseudo is true' in pg_get_functiondef('public.search_social_profiles(text,integer)'::regprocedure))>0,'profile search respects pseudo discoverability server-side');
 select ok(position('profile_visibility = ''public''' in pg_get_functiondef('public.search_social_profiles(text,integer)'::regprocedure))>0,'profile search respects profile visibility server-side');
 select ok(exists(select 1 from pg_indexes where schemaname='public' and indexname='game_invitations_pending_game_recipient_unique'),'duplicate pending game invitations are constrained');

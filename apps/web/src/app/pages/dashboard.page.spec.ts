@@ -1,12 +1,13 @@
 import { DOCUMENT } from '@angular/common';
-import { signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { GameService } from '../core/game.service';
 import type { GameSummary } from '../core/game.service';
+import { NotificationsService, type NotificationViewModel } from '../core/notifications.service';
 import { DELETION_NOTICE_DURATION_MS } from '../shared/dashboard-notification';
-import { DashboardPage } from './dashboard.page';
+import { DashboardHeaderComponent, DashboardPage } from './dashboard.page';
 
 describe('DashboardPage', () => {
   const user = signal({ id: 'user-1', email: 'mara@example.com', displayName: 'Aventurier' });
@@ -155,7 +156,13 @@ describe('DashboardPage', () => {
 
   it('opens a completed dashboard adventure on the journal route', async () => {
     games.set([
-      summary('completed-adventure', 'Aventure terminée', 'completed', 3, '2026-08-04T10:00:00.000Z'),
+      summary(
+        'completed-adventure',
+        'Aventure terminée',
+        'completed',
+        3,
+        '2026-08-04T10:00:00.000Z',
+      ),
     ]);
     const { fixture } = await render();
     const router = TestBed.inject(Router);
@@ -277,6 +284,138 @@ describe('DashboardPage', () => {
       playMode: 'asynchronous',
       turnNumber,
       updatedAt,
+    };
+  }
+});
+
+@Component({ template: '' })
+class EmptyRouteComponent {}
+
+describe('DashboardHeaderComponent notifications', () => {
+  const notificationsService = {
+    load: vi.fn<() => Promise<NotificationViewModel[]>>(),
+    markRead: vi.fn<(notification: NotificationViewModel) => Promise<void>>(),
+    markAllRead: vi.fn<() => Promise<void>>(),
+    acceptGameInvitation: vi.fn<(notification: NotificationViewModel) => Promise<string>>(),
+    declineGameInvitation: vi.fn<(notification: NotificationViewModel) => Promise<void>>(),
+  };
+
+  beforeEach(async () => {
+    notificationsService.load.mockResolvedValue([]);
+    notificationsService.markRead.mockResolvedValue();
+    notificationsService.markAllRead.mockResolvedValue();
+    notificationsService.acceptGameInvitation.mockResolvedValue('game-1');
+    notificationsService.declineGameInvitation.mockResolvedValue();
+    await TestBed.configureTestingModule({
+      imports: [DashboardHeaderComponent],
+      providers: [
+        provideRouter([{ path: 'aventure/:id/salon', component: EmptyRouteComponent }]),
+        { provide: NotificationsService, useValue: notificationsService },
+      ],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.clearAllMocks();
+  });
+
+  async function renderHeader(notifications: NotificationViewModel[]): Promise<{
+    fixture: ReturnType<typeof TestBed.createComponent<DashboardHeaderComponent>>;
+    component: DashboardHeaderComponent;
+    element: HTMLElement;
+  }> {
+    const fixture = TestBed.createComponent(DashboardHeaderComponent);
+    fixture.componentRef.setInput('userName', 'Mara');
+    fixture.componentRef.setInput('subtitle', 'Votre odyssee continue.');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = fixture.componentInstance;
+    component.notifications.set(notifications);
+    component.notificationsOpen.set(true);
+    fixture.detectChanges();
+    return { fixture, component, element: fixture.nativeElement as HTMLElement };
+  }
+
+  it('renders interactive actions only for pending game invitations', async () => {
+    const { element } = await renderHeader([
+      notification({
+        id: 'notification-1',
+        type: 'friend_request_received',
+        message: 'Hazer vous a envoye une demande.',
+        canRespondToGameInvitation: false,
+      }),
+      notification({
+        id: 'notification-2',
+        type: 'game_invitation_received',
+        message: 'Kael vous a invite a rejoindre une aventure.',
+        gameId: 'game-2',
+        gameTitle: 'Le Pacte des Brumes',
+        gameInvitationId: 'game-invite-2',
+        gameInvitationStatus: 'pending',
+        canRespondToGameInvitation: true,
+      }),
+    ]);
+
+    expect(element.textContent).toContain('Rejoindre');
+    expect(element.textContent).toContain('Refuser');
+    expect(element.textContent).toContain('Le Pacte des Brumes');
+    expect(element.querySelectorAll('.notification-row.interactive')).toHaveLength(1);
+  });
+
+  it('accepts a game invitation notification and opens the real adventure lobby', async () => {
+    const invitation = notification({
+      type: 'game_invitation_received',
+      gameId: 'game-1',
+      gameInvitationId: 'game-invite-1',
+      gameInvitationStatus: 'pending',
+      canRespondToGameInvitation: true,
+    });
+    const { component } = await renderHeader([invitation]);
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    await component.acceptGameInvitationNotification(invitation);
+
+    expect(notificationsService.acceptGameInvitation).toHaveBeenCalledWith(invitation);
+    expect(navigate).toHaveBeenCalledWith(['/aventure', 'game-1', 'salon']);
+    expect(component.notifications()).toEqual([]);
+  });
+
+  it('declines a game invitation notification without navigating', async () => {
+    const invitation = notification({
+      type: 'game_invitation_received',
+      gameId: 'game-1',
+      gameInvitationId: 'game-invite-1',
+      gameInvitationStatus: 'pending',
+      canRespondToGameInvitation: true,
+    });
+    const { component } = await renderHeader([invitation]);
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    await component.declineGameInvitationNotification(invitation);
+
+    expect(notificationsService.declineGameInvitation).toHaveBeenCalledWith(invitation);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(component.notifications()).toEqual([]);
+  });
+
+  function notification(patch: Partial<NotificationViewModel> = {}): NotificationViewModel {
+    return {
+      id: 'notification-1',
+      type: 'friend_request_received',
+      actorName: 'Hazer',
+      actorAvatarUrl: null,
+      gameId: null,
+      gameTitle: null,
+      gameInvitationId: null,
+      gameInvitationStatus: null,
+      createdAt: null,
+      readAt: null,
+      message: 'Hazer vous a envoye une demande.',
+      canRespondToGameInvitation: false,
+      ...patch,
     };
   }
 });
