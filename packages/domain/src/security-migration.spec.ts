@@ -48,6 +48,10 @@ const deleteGame = readFileSync(
   resolve(process.cwd(), '../../supabase/migrations/202608030005_delete_game_for_all.sql'),
   'utf8',
 );
+const worldSettings = readFileSync(
+  resolve(process.cwd(), '../../supabase/migrations/202608280002_game_world_settings.sql'),
+  'utf8',
+);
 describe('Supabase security migration', () => {
   it('enables RLS and protects private goals and decisions', () => {
     expect(initial.match(/enable row level security/g)?.length).toBeGreaterThanOrEqual(12);
@@ -131,5 +135,27 @@ describe('Supabase security migration', () => {
     expect(deleteGame).not.toContain(
       'grant execute on function public.delete_game_for_all(uuid) to anon',
     );
+  });
+
+  it('stores world settings with RLS, RPC-only writes and startup locking', () => {
+    expect(worldSettings).toContain('create table if not exists public.game_world_settings');
+    expect(worldSettings).toContain(
+      'alter table public.game_world_settings enable row level security',
+    );
+    expect(worldSettings).toContain('game_world_settings_read_member');
+    expect(worldSettings).toContain('create or replace function public.save_game_world_settings');
+    expect(worldSettings).toContain(
+      "target_game.status not in ('waiting', 'character_creation', 'ready')",
+    );
+    expect(worldSettings).toContain('not is_host and not current_settings.allow_player2_edit');
+    expect(worldSettings).toContain('world_settings_permission_forbidden');
+    expect(worldSettings).toContain('set locked_at=coalesce(locked_at, now())');
+    expect(worldSettings).toContain(
+      'grant select on table public.game_world_settings to authenticated',
+    );
+    expect(worldSettings).not.toContain(
+      'grant update on table public.game_world_settings to authenticated',
+    );
+    expect(worldSettings).not.toContain('using (true)');
   });
 });

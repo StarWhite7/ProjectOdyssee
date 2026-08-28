@@ -39,6 +39,34 @@ describe('Gemini client', () => {
     expect(logs.log.mock.calls.flat().join(' ')).toContain('gemini_request_succeeded');
   });
 
+  it('sends foundational world settings inside gameData for every generation', async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(payload('{"resolutionNarration":"ok"}')), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    await callGemini(
+      {
+        foundationalWorldRules:
+          'universe_type: cyberpunk\nmagic_level: none\nforbidden_elements: torture',
+      },
+      ['character-1'],
+      'gemini-2.5-flash',
+      'key',
+      fetcher,
+      logger(),
+    );
+
+    const [, request] = fetcher.mock.calls[0] as [string, RequestInit];
+    expect(request.body).toContain('foundationalWorldRules');
+    expect(request.body).toContain('universe_type');
+    expect(request.body).toContain('magic_level');
+    expect(request.body).toContain('forbidden_elements');
+    expect(request.body).toContain('torture');
+  });
+
   it('accepts a single Markdown JSON fence', () => {
     expect(parseGeminiJson('```json\n{"value":1}\n```')).toEqual({ value: 1 });
   });

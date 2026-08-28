@@ -1,4 +1,9 @@
-import { GAME_STATUSES, getGameRouteSection, getMyAdventureRouteSection } from './game-status';
+import {
+  GAME_STATUSES,
+  getGameRouteSection,
+  getMyAdventureRouteSection,
+  isWorldSetupGameStatus,
+} from './game-status';
 
 describe('game status routing', () => {
   it('routes active adventure statuses to the game page', () => {
@@ -26,6 +31,13 @@ describe('game status routing', () => {
 
   it('uses the lobby as a safe fallback for unknown statuses', () => {
     expect(getGameRouteSection('unexpected')).toBe('salon');
+  });
+
+  it('treats waiting, character creation and ready as world setup statuses', () => {
+    expect(isWorldSetupGameStatus(GAME_STATUSES.WAITING)).toBe(true);
+    expect(isWorldSetupGameStatus(GAME_STATUSES.CHARACTER_CREATION)).toBe(true);
+    expect(isWorldSetupGameStatus(GAME_STATUSES.READY)).toBe(true);
+    expect(isWorldSetupGameStatus(GAME_STATUSES.ACTIVE)).toBe(false);
   });
 
   it('keeps my pending adventures on the lobby route without changing general game routing', () => {

@@ -42,6 +42,14 @@ export function isPendingGameStatus(status: string): boolean {
   return (PENDING_GAME_STATUSES as readonly string[]).includes(status);
 }
 
+export function isWorldSetupGameStatus(status: string): boolean {
+  return (
+    status === GAME_STATUSES.WAITING ||
+    status === GAME_STATUSES.CHARACTER_CREATION ||
+    status === GAME_STATUSES.READY
+  );
+}
+
 export function isCompletedGameStatus(status: string): boolean {
   return (COMPLETED_GAME_STATUSES as readonly string[]).includes(status);
 }

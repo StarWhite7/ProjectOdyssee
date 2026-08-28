@@ -10,7 +10,7 @@ import { LobbyPage } from './lobby.page';
 describe('LobbyPage deletion navigation', () => {
   const game = signal<LocalAdventure>(adventure());
   const gameService = {
-    startIfReady: vi.fn<() => Promise<'waiting_for_characters'>>(),
+    startIfReady: vi.fn<() => Promise<'already_started' | 'waiting_for_characters'>>(),
     load: vi.fn<() => Promise<LocalAdventure>>(),
     isGameMissingError: vi.fn<() => boolean>(),
   };
@@ -72,6 +72,36 @@ describe('LobbyPage deletion navigation', () => {
     expect(invitationsService.load).toHaveBeenCalled();
     expect(element.textContent).toContain('Kael');
     expect(element.textContent).not.toContain('Ami fictif');
+  });
+
+  it('shows world options only before the narrative startup', async () => {
+    const waiting = await render();
+    expect(waiting.element.textContent).toContain('Options du monde');
+
+    TestBed.resetTestingModule();
+    game.set(adventure({ status: 'active' }));
+    gameService.startIfReady.mockResolvedValue('already_started');
+    gameService.load.mockImplementation(() => Promise.resolve(game()));
+    gameService.isGameMissingError.mockReturnValue(false);
+    invitationsService.load.mockResolvedValue(socialData());
+    TestBed.configureTestingModule({
+      imports: [LobbyPage],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => 'game-1' } } } },
+        {
+          provide: AuthService,
+          useValue: {
+            user: signal({ id: 'alice', email: 'alice@example.test', displayName: 'Alice' }),
+          },
+        },
+        { provide: GameService, useValue: gameService },
+        { provide: InvitationsService, useValue: invitationsService },
+      ],
+    });
+
+    const active = await render();
+    expect(active.element.textContent).not.toContain('Options du monde');
   });
 
   it('sends a game invitation with the real game id and friend user id', async () => {

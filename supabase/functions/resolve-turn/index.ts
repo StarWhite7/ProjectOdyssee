@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
 import { readAiConfiguration, resolveWithProvider } from './ai-provider.ts';
+import { buildGameContext } from './game-context.ts';
 import { callGemini } from './gemini-client.ts';
 import { runLoadContextStep } from './load-context-logging.ts';
 import { buildMockResolutionNarration } from './mock-resolution.ts';
@@ -64,48 +65,57 @@ async function loadContext(admin: ReturnType<typeof createClient>, turnId: strin
   const turn = await runLoadContextStep('story_turns', () =>
     admin.from('story_turns').select('*,player_decisions(*)').eq('id', turnId).single(),
   );
-  const [game, world, characters, goals, recentTurns, memories, summaries] = await Promise.all([
-    runLoadContextStep('games', () =>
-      admin.from('games').select('*').eq('id', turn.game_id).single(),
-    ),
-    runLoadContextStep('world_states', () =>
-      admin.from('world_states').select('*').eq('game_id', turn.game_id).single(),
-    ),
-    runLoadContextStep('characters', () =>
-      admin.from('characters').select('*').eq('game_id', turn.game_id),
-    ),
-    runLoadContextStep('character_goals', () =>
-      admin.from('character_goals').select('*').eq('game_id', turn.game_id).eq('status', 'active'),
-    ),
-    runLoadContextStep('recent_turns', () =>
-      admin
-        .from('story_turns')
-        .select('*')
-        .eq('game_id', turn.game_id)
-        .lt('turn_number', turn.turn_number)
-        .order('turn_number', { ascending: false })
-        .limit(Number(Deno.env.get('RECENT_TURNS_CONTEXT_COUNT') ?? 6)),
-    ),
-    runLoadContextStep('memories', () =>
-      admin
-        .from('memories')
-        .select('*')
-        .eq('game_id', turn.game_id)
-        .order('importance', { ascending: false })
-        .limit(12),
-    ),
-    runLoadContextStep('narrative_summaries', () =>
-      admin
-        .from('narrative_summaries')
-        .select('*')
-        .eq('game_id', turn.game_id)
-        .order('through_turn_number', { ascending: false })
-        .limit(1),
-    ),
-  ]);
-  return {
+  const [game, world, worldSettings, characters, goals, recentTurns, memories, summaries] =
+    await Promise.all([
+      runLoadContextStep('games', () =>
+        admin.from('games').select('*').eq('id', turn.game_id).single(),
+      ),
+      runLoadContextStep('world_states', () =>
+        admin.from('world_states').select('*').eq('game_id', turn.game_id).single(),
+      ),
+      runLoadContextStep('game_world_settings', () =>
+        admin.from('game_world_settings').select('*').eq('game_id', turn.game_id).maybeSingle(),
+      ),
+      runLoadContextStep('characters', () =>
+        admin.from('characters').select('*').eq('game_id', turn.game_id),
+      ),
+      runLoadContextStep('character_goals', () =>
+        admin
+          .from('character_goals')
+          .select('*')
+          .eq('game_id', turn.game_id)
+          .eq('status', 'active'),
+      ),
+      runLoadContextStep('recent_turns', () =>
+        admin
+          .from('story_turns')
+          .select('*')
+          .eq('game_id', turn.game_id)
+          .lt('turn_number', turn.turn_number)
+          .order('turn_number', { ascending: false })
+          .limit(Number(Deno.env.get('RECENT_TURNS_CONTEXT_COUNT') ?? 6)),
+      ),
+      runLoadContextStep('memories', () =>
+        admin
+          .from('memories')
+          .select('*')
+          .eq('game_id', turn.game_id)
+          .order('importance', { ascending: false })
+          .limit(12),
+      ),
+      runLoadContextStep('narrative_summaries', () =>
+        admin
+          .from('narrative_summaries')
+          .select('*')
+          .eq('game_id', turn.game_id)
+          .order('through_turn_number', { ascending: false })
+          .limit(1),
+      ),
+    ]);
+  return buildGameContext({
     game,
     world,
+    worldSettings,
     characters: characters ?? [],
     goals: goals ?? [],
     currentTurn: turn,
@@ -113,7 +123,7 @@ async function loadContext(admin: ReturnType<typeof createClient>, turnId: strin
     recentTurns: recentTurns ?? [],
     memories: memories ?? [],
     summary: summaries?.[0] ?? null,
-  };
+  });
 }
 
 function mockResolution(context: Awaited<ReturnType<typeof loadContext>>) {

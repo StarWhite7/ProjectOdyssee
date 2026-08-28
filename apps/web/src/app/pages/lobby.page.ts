@@ -2,11 +2,13 @@ import type { OnDestroy, OnInit } from '@angular/core';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
+import { isWorldSetupGameStatus } from '../core/game-status';
 import { GameService } from '../core/game.service';
 import type { LocalAdventure } from '../core/game.service';
 import { InvitationsService, type FriendViewModel } from '../core/invitations.service';
 import { dashboardNotificationState } from '../shared/dashboard-notification';
 import { DeleteGameDialogComponent } from '../shared/delete-game-dialog.component';
+import { WorldOptionsDialogComponent } from '../shared/world-options-dialog.component';
 
 type LobbyFriendInviteState = 'can_invite' | 'pending' | 'member' | 'unavailable';
 
@@ -16,7 +18,7 @@ type LobbyFriendViewModel = FriendViewModel & {
 
 @Component({
   selector: 'app-lobby',
-  imports: [RouterLink, DeleteGameDialogComponent],
+  imports: [RouterLink, DeleteGameDialogComponent, WorldOptionsDialogComponent],
   template: `<div class="shell">
     <header class="topbar">
       <a class="brand" routerLink="/dashboard">Nerys</a>
@@ -133,6 +135,15 @@ type LobbyFriendViewModel = FriendViewModel & {
           <p class="friends-notice" aria-live="polite">{{ friendsNotice() }}</p>
         }
         <div class="actions">
+          @if (canOpenWorldOptions()) {
+            <button
+              type="button"
+              class="button world-options-action"
+              (click)="worldOptionsOpen.set(true)"
+            >
+              Options du monde
+            </button>
+          }
           <a class="button" [routerLink]="['/aventure', current.id, 'personnage']">{{
             ownCharacter() ? 'Modifier mon personnage' : 'Créer mon personnage'
           }}</a>
@@ -142,6 +153,14 @@ type LobbyFriendViewModel = FriendViewModel & {
             >
           }
         </div>
+        @if (worldOptionsOpen()) {
+          <app-world-options-dialog
+            [gameId]="current.id"
+            [gameStatus]="current.status"
+            [isHost]="isHost()"
+            (closed)="worldOptionsOpen.set(false)"
+          />
+        }
       }
     </main>
   </div>`,
@@ -275,6 +294,11 @@ type LobbyFriendViewModel = FriendViewModel & {
       .actions {
         margin: 1.2rem 0 4rem;
       }
+      .world-options-action {
+        background: linear-gradient(120deg, #e1c071, #8d6b2b);
+        color: #101527;
+        box-shadow: 0 12px 30px rgba(90, 65, 18, 0.24);
+      }
       @media (max-width: 980px) {
         .lobby-grid {
           grid-template-columns: 1fr;
@@ -305,6 +329,7 @@ export class LobbyPage implements OnInit, OnDestroy {
   readonly friendsError = signal(false);
   readonly friendsNotice = signal('');
   readonly invitingFriendId = signal<string | null>(null);
+  readonly worldOptionsOpen = signal(false);
   private refreshTimer: number | undefined;
   async ngOnInit() {
     await this.refresh();
@@ -344,6 +369,12 @@ export class LobbyPage implements OnInit, OnDestroy {
   }
   partnerCharacter() {
     return this.game()?.characters.some((c) => c.ownerId !== this.auth.user()?.id) ?? false;
+  }
+  canOpenWorldOptions(): boolean {
+    return isWorldSetupGameStatus(this.game()?.status ?? '');
+  }
+  isHost(): boolean {
+    return this.game()?.ownerId === this.auth.user()?.id;
   }
   async inviteFriend(friend: LobbyFriendViewModel): Promise<void> {
     if (friend.inviteState !== 'can_invite' || this.invitingFriendId()) return;

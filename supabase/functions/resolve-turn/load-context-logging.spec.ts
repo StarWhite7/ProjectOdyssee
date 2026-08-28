@@ -53,6 +53,7 @@ describe('loadContext query logging', () => {
       'story_turns',
       'games',
       'world_states',
+      'game_world_settings',
       'characters',
       'character_goals',
       'recent_turns',
