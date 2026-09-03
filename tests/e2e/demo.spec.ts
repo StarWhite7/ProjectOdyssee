@@ -70,7 +70,7 @@ test('keeps two real browser pages secret and resolves exactly once', async ({ c
   await partner.reload();
   await expect(partner.getByText('Décision verrouillée')).toBeVisible();
   await expect(partner.getByText(/ouvrir le coffre scellé de Sora/i)).not.toBeVisible();
-  await partner.getByRole('button', { name: /Prendre l’initiative/ }).click();
+  await partner.getByRole('button', { name: /Entrer en action/ }).click();
   await partner.getByRole('button', { name: 'Valider en secret' }).click();
   await expect(partner.getByText('TOUR 2')).toBeVisible();
   await page.reload();

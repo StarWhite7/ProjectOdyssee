@@ -9,13 +9,12 @@ import { handleResolutionFailure } from './resolution-error.ts';
 import { validateAndNormalizeResult } from './resolution-result.ts';
 import type { ResolutionStage } from './resolution-error.ts';
 
-const cors = createCorsHeaders(Deno.env.get('APP_URL'));
-
 Deno.serve(async (request) => {
+  const cors = createCorsHeaders(request.headers.get('Origin'), Deno.env.get('APP_URL'));
   const preflight = handleCorsPreflight(request, cors);
   if (preflight) return preflight;
   const auth = request.headers.get('Authorization');
-  if (!auth) return json({ error: 'unauthorized' }, 401);
+  if (!auth) return json({ error: 'unauthorized' }, 401, cors);
   const userClient = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -30,12 +29,12 @@ Deno.serve(async (request) => {
   try {
     const body = (await request.json()) as { turnId?: string };
     turnId = body.turnId?.trim() ?? '';
-    if (!/^[0-9a-f-]{36}$/i.test(turnId)) return json({ error: 'invalid_turn_id' }, 400);
+    if (!/^[0-9a-f-]{36}$/i.test(turnId)) return json({ error: 'invalid_turn_id' }, 400, cors);
     const { data: claimed, error: claimError } = await userClient.rpc('claim_turn_resolution', {
       target_turn_id: turnId,
     });
     if (claimError) throw claimError;
-    if (!claimed) return json({ status: 'already_claimed_or_not_ready' }, 202);
+    if (!claimed) return json({ status: 'already_claimed_or_not_ready' }, 202, cors);
     stage = 'load_context';
     const context = await loadContext(admin, turnId);
     stage = 'read_ai_configuration';
@@ -55,7 +54,7 @@ Deno.serve(async (request) => {
       { target_turn_id: turnId, result },
     );
     if (completionError) throw completionError;
-    return json({ status: 'resolved', nextTurnId });
+    return json({ status: 'resolved', nextTurnId }, 200, cors);
   } catch (error) {
     return handleResolutionFailure(admin, turnId, error, cors, stage);
   }
@@ -170,7 +169,7 @@ function mockResolution(context: Awaited<ReturnType<typeof loadContext>>) {
   };
 }
 
-function json(value: unknown, status = 200) {
+function json(value: unknown, status: number, cors: Record<string, string>) {
   return new Response(JSON.stringify(value), {
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },

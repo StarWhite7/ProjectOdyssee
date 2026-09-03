@@ -1,21 +1,20 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
 
-const cors = createCorsHeaders(Deno.env.get('APP_URL'));
-
 Deno.serve(async (request) => {
+  const cors = createCorsHeaders(request.headers.get('Origin'), Deno.env.get('APP_URL'));
   const preflight = handleCorsPreflight(request, cors);
   if (preflight) return preflight;
   const expected = Deno.env.get('CRON_SECRET');
   if (!expected || request.headers.get('x-cron-secret') !== expected)
-    return response({ error: 'unauthorized' }, 401);
+    return response({ error: 'unauthorized' }, 401, cors);
   const url = Deno.env.get('SUPABASE_URL')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const admin = createClient(url, serviceKey);
   const { data: due, error } = await admin.rpc('expire_due_turns');
   if (error) {
     console.error(error);
-    return response({ error: 'expire_turns_failed' }, 500);
+    return response({ error: 'expire_turns_failed' }, 500, cors);
   }
   const results = await Promise.allSettled(
     ((due ?? []) as Array<{ turn_id: string }>).map((row) =>
@@ -30,13 +29,17 @@ Deno.serve(async (request) => {
       }),
     ),
   );
-  return response({
-    expired: due?.length ?? 0,
-    triggered: results.filter((result) => result.status === 'fulfilled').length,
-  });
+  return response(
+    {
+      expired: due?.length ?? 0,
+      triggered: results.filter((result) => result.status === 'fulfilled').length,
+    },
+    200,
+    cors,
+  );
 });
 
-function response(body: unknown, status = 200) {
+function response(body: unknown, status: number, cors: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },

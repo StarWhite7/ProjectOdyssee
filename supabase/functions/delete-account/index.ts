@@ -1,15 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
 
-const cors = createCorsHeaders(Deno.env.get('APP_URL'));
-
 Deno.serve(async (request) => {
+  const cors = createCorsHeaders(request.headers.get('Origin'), Deno.env.get('APP_URL'));
   const preflight = handleCorsPreflight(request, cors);
   if (preflight) return preflight;
-  if (request.method !== 'POST') return response({ error: 'method_not_allowed' }, 405);
+  if (request.method !== 'POST') return response({ error: 'method_not_allowed' }, 405, cors);
 
   const authorization = request.headers.get('Authorization');
-  if (!authorization) return response({ error: 'unauthorized' }, 401);
+  if (!authorization) return response({ error: 'unauthorized' }, 401, cors);
 
   const userClient = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -24,11 +23,11 @@ Deno.serve(async (request) => {
   try {
     const body = (await request.json().catch(() => ({}))) as { confirmation?: string };
     if (body.confirmation !== 'SUPPRIMER') {
-      return response({ error: 'confirmation_required' }, 400);
+      return response({ error: 'confirmation_required' }, 400, cors);
     }
 
     const { data, error: userError } = await userClient.auth.getUser();
-    if (userError || !data.user) return response({ error: 'unauthorized' }, 401);
+    if (userError || !data.user) return response({ error: 'unauthorized' }, 401, cors);
 
     const userId = data.user.id;
 
@@ -46,14 +45,14 @@ Deno.serve(async (request) => {
     const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
     if (deleteError) throw deleteError;
 
-    return response({ status: 'deleted' });
+    return response({ status: 'deleted' }, 200, cors);
   } catch (error) {
     console.error(error);
-    return response({ error: 'delete_account_failed' }, 500);
+    return response({ error: 'delete_account_failed' }, 500, cors);
   }
 });
 
-function response(body: unknown, status = 200): Response {
+function response(body: unknown, status: number, cors: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },

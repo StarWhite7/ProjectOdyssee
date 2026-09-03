@@ -439,9 +439,10 @@ export class GameService {
       const game = await this.load(gameId);
       return game.status === 'active' ? 'started' : 'waiting_for_characters';
     }
-    const { data, error } = await client.rpc('start_game_if_ready', { target_game_id: gameId });
+    const { data, error } = await client.functions.invoke('start-game', { body: { gameId } });
     if (error) throw error;
-    return String(data) as 'started' | 'already_started' | 'waiting_for_characters';
+    return String((data as { status?: string } | null)?.status ?? 'started') as
+      'started' | 'already_started' | 'waiting_for_characters';
   }
 
   async getTurnSubmissionStatus(gameId: string, turnId: string): Promise<TurnSubmissionStatus[]> {
@@ -596,13 +597,13 @@ export class GameService {
       [
         {
           id: `${character.id}-observe`,
-          label: 'Observer les détails',
-          description: 'Lire les signes discrets de la scène.',
+          label: 'Analyser la scène',
+          description: 'Repérer ce que le décor révèle de la situation.',
         },
         {
           id: `${character.id}-initiative`,
-          label: 'Prendre l’initiative',
-          description: 'Agir directement selon ses valeurs.',
+          label: 'Entrer en action',
+          description: 'Intervenir d’une manière fidèle à ses valeurs.',
         },
       ],
     ]);

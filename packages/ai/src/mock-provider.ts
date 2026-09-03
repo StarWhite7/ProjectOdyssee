@@ -19,13 +19,13 @@ function intentions(characterId: string, turn: number) {
   return [
     {
       id: `${characterId}-${turn}-observe`,
-      label: 'Observer les détails',
-      description: 'Prendre le temps de lire les signes discrets de la scène.',
+      label: 'Lire la scène',
+      description: 'Prendre le temps de comprendre les signes du moment.',
     },
     {
       id: `${characterId}-${turn}-act`,
-      label: 'Prendre l’initiative',
-      description: 'Agir directement selon ses valeurs, sans décider pour l’autre.',
+      label: 'Faire un pas',
+      description: 'Agir selon ses valeurs, sans décider pour l’autre.',
     },
   ];
 }

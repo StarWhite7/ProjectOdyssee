@@ -1,7 +1,7 @@
 begin;
 -- Run with: supabase test db (after creating three Auth fixtures in a local stack).
 -- These assertions are documented executable probes for the critical policies.
-select plan(82);
+select plan(84);
 select has_table('public','games','games exists');
 select has_table('public','player_decisions','decisions exist');
 select col_is_unique('public','player_decisions',array['turn_id','player_id'],'one decision per player and turn');
@@ -81,6 +81,8 @@ select ok(position('not is_host and not current_settings.allow_player2_edit' in 
 select ok(position('world_settings_permission_forbidden' in pg_get_functiondef('public.save_game_world_settings(uuid,text,text,text,text,text,text,text,text,text[],text,text,text,integer,text,text,text,text[],text,text[],text,text,text,boolean)'::regprocedure))>0,'world settings deny player 2 permission escalation');
 select ok(position('world_settings_locked' in pg_get_functiondef('public.save_game_world_settings(uuid,text,text,text,text,text,text,text,text,text[],text,text,text,integer,text,text,text,text[],text,text[],text,text,text,boolean)'::regprocedure))>0,'world settings cannot be changed after startup lock');
 select ok(position('locked_at' in pg_get_functiondef('public.start_game_if_ready(uuid)'::regprocedure))>0 and position('coalesce' in pg_get_functiondef('public.start_game_if_ready(uuid)'::regprocedure))>0,'starting the game locks world settings server-side');
+select ok(position('start_game_requires_edge_function' in pg_get_functiondef('public.start_game_if_ready(uuid)'::regprocedure))>0,'SQL start function no longer creates the generated first turn');
+select ok(position('Le monde retient son souffle' in pg_get_functiondef('public.start_game_if_ready(uuid)'::regprocedure))=0 and position('Le seuil de l’aventure' in pg_get_functiondef('public.start_game_if_ready(uuid)'::regprocedure))=0,'SQL start function has no static first-turn fallback');
 select ok(position('searchable_by_pseudo is true' in pg_get_functiondef('public.search_social_profiles(text,integer)'::regprocedure))>0,'profile search respects pseudo discoverability server-side');
 select ok(position('profile_visibility = ''public''' in pg_get_functiondef('public.search_social_profiles(text,integer)'::regprocedure))>0,'profile search respects profile visibility server-side');
 select ok(exists(select 1 from pg_indexes where schemaname='public' and indexname='game_invitations_pending_game_recipient_unique'),'duplicate pending game invitations are constrained');

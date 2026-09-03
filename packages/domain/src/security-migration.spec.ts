@@ -52,6 +52,13 @@ const worldSettings = readFileSync(
   resolve(process.cwd(), '../../supabase/migrations/202608280002_game_world_settings.sql'),
   'utf8',
 );
+const generatedOpening = readFileSync(
+  resolve(
+    process.cwd(),
+    '../../supabase/migrations/202608280003_start_game_requires_generated_opening.sql',
+  ),
+  'utf8',
+);
 describe('Supabase security migration', () => {
   it('enables RLS and protects private goals and decisions', () => {
     expect(initial.match(/enable row level security/g)?.length).toBeGreaterThanOrEqual(12);
@@ -157,5 +164,16 @@ describe('Supabase security migration', () => {
       'grant update on table public.game_world_settings to authenticated',
     );
     expect(worldSettings).not.toContain('using (true)');
+  });
+
+  it('prevents the SQL start fallback from creating a static first turn', () => {
+    expect(generatedOpening).toContain('create or replace function public.start_game_if_ready');
+    expect(generatedOpening).toContain('start_game_requires_edge_function');
+    expect(generatedOpening).toContain('existing_first_turn is null');
+    expect(generatedOpening).toContain("return 'already_started'");
+    expect(generatedOpening).not.toContain('Le seuil de l’aventure');
+    expect(generatedOpening).not.toContain('Le monde retient son souffle');
+    expect(generatedOpening).not.toContain('Observer les détails');
+    expect(generatedOpening).not.toContain('Prendre l’initiative');
   });
 });

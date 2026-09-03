@@ -37,9 +37,31 @@ type RawGameContext = {
   summary: unknown;
 };
 
+type OpeningGameContext = {
+  game: unknown;
+  world: unknown;
+  worldSettings: WorldSettingsRow | null;
+  characters: unknown[];
+  goals: unknown[];
+};
+
 export function buildGameContext(context: RawGameContext) {
   return {
     ...context,
+    foundationalWorldRules: buildFoundationalWorldRules(context.worldSettings),
+  };
+}
+
+export function buildOpeningGameContext(context: OpeningGameContext) {
+  return {
+    ...context,
+    currentTurn: null,
+    decisions: [],
+    recentTurns: [],
+    memories: [],
+    summary: null,
+    openingMission:
+      'Installer le monde, présenter les deux personnages et proposer une première situation ouverte sans imposer leurs actions.',
     foundationalWorldRules: buildFoundationalWorldRules(context.worldSettings),
   };
 }
@@ -51,6 +73,7 @@ export function buildFoundationalWorldRules(settings: WorldSettingsRow | null): 
 
   return [
     '=== REGLES FONDATRICES DU MONDE ===',
+    'source: game_world_settings',
     `preset: ${settings.preset ?? 'classic_fantasy'}`,
     `title: ${settings.title ?? ''}`,
     `universe_type: ${settings.universe_type ?? 'fantasy'}`,

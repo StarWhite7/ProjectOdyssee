@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildFoundationalWorldRules, buildGameContext } from './game-context';
+import {
+  buildFoundationalWorldRules,
+  buildGameContext,
+  buildOpeningGameContext,
+} from './game-context';
 
 const worldSettings = {
   preset: 'cyberpunk',
@@ -68,5 +72,50 @@ describe('game context world settings', () => {
 
     expect(context.foundationalWorldRules).toContain('REGLES FONDATRICES');
     expect(context.foundationalWorldRules).toContain('forbidden_elements: torture');
+  });
+
+  it('builds different opening contexts for different configured worlds', () => {
+    const cyberpunk = buildOpeningGameContext({
+      game: { id: 'game-cyberpunk' },
+      world: {},
+      worldSettings,
+      characters: [{ id: 'character-a', name: 'Nyx' }],
+      goals: [],
+    });
+    const fantasy = buildOpeningGameContext({
+      game: { id: 'game-fantasy' },
+      world: {},
+      worldSettings: {
+        ...worldSettings,
+        preset: 'classic_fantasy',
+        universe_type: 'fantasy',
+        magic_level: 'very_present',
+        technology_level: 'medieval',
+        atmospheres: ['adventurous', 'epic'],
+      },
+      characters: [{ id: 'character-b', name: 'Elya' }],
+      goals: [],
+    });
+
+    expect(cyberpunk.foundationalWorldRules).toContain('universe_type: cyberpunk');
+    expect(fantasy.foundationalWorldRules).toContain('universe_type: fantasy');
+    expect(cyberpunk.foundationalWorldRules).not.toBe(fantasy.foundationalWorldRules);
+  });
+
+  it('keeps character data and forbidden limits in the first-turn context', () => {
+    const context = buildOpeningGameContext({
+      game: { id: 'game-1' },
+      world: {},
+      worldSettings,
+      characters: [
+        { id: 'character-a', name: 'Nyx', backstory: 'Ancienne enquêtrice des bas-fonds.' },
+        { id: 'character-b', name: 'Oran', backstory: 'Technicien d’une tour orbitale.' },
+      ],
+      goals: [{ character_id: 'character-a', description: 'Trouver la source du signal.' }],
+    });
+
+    expect(JSON.stringify(context.characters)).toContain('Ancienne enquêtrice');
+    expect(context.foundationalWorldRules).toContain('forbidden_elements: torture');
+    expect(context.foundationalWorldRules).toContain('animal_violence');
   });
 });

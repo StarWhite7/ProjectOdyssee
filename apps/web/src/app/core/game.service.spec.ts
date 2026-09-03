@@ -71,6 +71,27 @@ describe('GameService turn resolution transport', () => {
     expect(remoteClient.rpc).not.toHaveBeenCalled();
   });
 
+  it('starts ready games through the start-game Edge Function instead of the SQL fallback', async () => {
+    client!.functions.invoke.mockResolvedValue({ data: { status: 'started' }, error: null });
+
+    await expect(service.startIfReady('game-42')).resolves.toBe('started');
+    expect(client!.functions.invoke).toHaveBeenCalledWith('start-game', {
+      body: { gameId: 'game-42' },
+    });
+    expect(client!.rpc).not.toHaveBeenCalled();
+  });
+
+  it('propagates start-game Edge Function errors without creating a local fallback turn', async () => {
+    const error = new Error('ai_configuration_error');
+    client!.functions.invoke.mockResolvedValue({ data: null, error });
+
+    await expect(service.startIfReady('game-42')).rejects.toBe(error);
+    expect(client!.functions.invoke).toHaveBeenCalledWith('start-game', {
+      body: { gameId: 'game-42' },
+    });
+    expect(client!.rpc).not.toHaveBeenCalled();
+  });
+
   it('deletes a Supabase game through the protected RPC and refreshes the list', async () => {
     client!.rpc.mockResolvedValue({ data: 'deleted', error: null });
     const refresh = vi.spyOn(service, 'refresh').mockResolvedValue();
