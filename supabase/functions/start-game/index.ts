@@ -5,7 +5,11 @@ import { buildOpeningGameContext } from '../resolve-turn/game-context.ts';
 import { generateOpeningTurn } from './opening-turn.ts';
 
 Deno.serve(async (request) => {
-  const cors = createCorsHeaders(request.headers.get('Origin'), Deno.env.get('APP_URL'));
+  const cors = createCorsHeaders(
+    request.headers.get('Origin'),
+    Deno.env.get('APP_URL'),
+    Deno.env.get('CORS_ALLOWED_ORIGINS'),
+  );
   const preflight = handleCorsPreflight(request, cors);
   if (preflight) return preflight;
   const authorization = request.headers.get('Authorization');

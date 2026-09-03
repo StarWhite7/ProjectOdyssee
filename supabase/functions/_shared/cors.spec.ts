@@ -12,10 +12,18 @@ describe('shared Edge Function CORS', () => {
   it('allows localhost and production origins without widening the origin', () => {
     expect(allowedCorsOrigins).toEqual([
       'http://localhost:4200',
+      'https://playnerys.com',
+      'https://www.playnerys.com',
       'https://projectodyssee.pages.dev',
     ]);
     expect(createCorsHeaders('http://localhost:4200')['Access-Control-Allow-Origin']).toBe(
       'http://localhost:4200',
+    );
+    expect(createCorsHeaders('https://playnerys.com')['Access-Control-Allow-Origin']).toBe(
+      'https://playnerys.com',
+    );
+    expect(createCorsHeaders('https://www.playnerys.com')['Access-Control-Allow-Origin']).toBe(
+      'https://www.playnerys.com',
     );
     expect(
       createCorsHeaders('https://projectodyssee.pages.dev')['Access-Control-Allow-Origin'],
@@ -44,7 +52,24 @@ describe('shared Edge Function CORS', () => {
   it('falls back to the production origin when no allowlisted origin is available', () => {
     const headers = createCorsHeaders(undefined, 'https://attacker.example');
 
-    expect(headers['Access-Control-Allow-Origin']).toBe('https://projectodyssee.pages.dev');
+    expect(headers['Access-Control-Allow-Origin']).toBe('https://playnerys.com');
+  });
+
+  it('can add explicit configured origins without accepting malformed values', () => {
+    const headers = createCorsHeaders(
+      'https://preview.playnerys.com',
+      undefined,
+      'https://preview.playnerys.com, https://bad.example/path, ftp://bad.example',
+    );
+
+    expect(headers['Access-Control-Allow-Origin']).toBe('https://preview.playnerys.com');
+    expect(
+      createCorsHeaders(
+        'https://bad.example',
+        undefined,
+        'https://preview.playnerys.com, https://bad.example/path, ftp://bad.example',
+      )['Access-Control-Allow-Origin'],
+    ).toBe('https://playnerys.com');
   });
 
   it('returns a complete 204 response for OPTIONS only', () => {
@@ -71,6 +96,7 @@ describe('shared Edge Function CORS', () => {
       expect(source).toContain("from '../_shared/cors.ts'");
       expect(source).toContain('createCorsHeaders');
       expect(source).toContain("request.headers.get('Origin')");
+      expect(source).toContain("Deno.env.get('CORS_ALLOWED_ORIGINS')");
       expect(source).toContain('handleCorsPreflight');
       expect(source).not.toContain("'Access-Control-Allow-Origin': '*'");
       expect(source).not.toContain("const cors = createCorsHeaders(Deno.env.get('APP_URL'))");
@@ -95,7 +121,7 @@ describe('shared Edge Function CORS', () => {
       'utf8',
     );
 
-    expect(source).toContain("createCorsHeaders(request.headers.get('Origin')");
+    expect(source).toContain("request.headers.get('Origin')");
     expect(source).toContain("return response({ status: 'started' }, 200, cors)");
     expect(source).toContain("return response({ error: 'start_failed'");
   });

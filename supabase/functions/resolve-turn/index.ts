@@ -10,7 +10,11 @@ import { validateAndNormalizeResult } from './resolution-result.ts';
 import type { ResolutionStage } from './resolution-error.ts';
 
 Deno.serve(async (request) => {
-  const cors = createCorsHeaders(request.headers.get('Origin'), Deno.env.get('APP_URL'));
+  const cors = createCorsHeaders(
+    request.headers.get('Origin'),
+    Deno.env.get('APP_URL'),
+    Deno.env.get('CORS_ALLOWED_ORIGINS'),
+  );
   const preflight = handleCorsPreflight(request, cors);
   if (preflight) return preflight;
   const auth = request.headers.get('Authorization');

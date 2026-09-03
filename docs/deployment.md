@@ -6,9 +6,10 @@
 npx supabase login
 npx supabase link --project-ref VOTRE_REFERENCE
 npx supabase db push
-npx supabase secrets set APP_URL=https://votre-domaine.example AI_PROVIDER=mock CRON_SECRET=UNE_VALEUR_ALEATOIRE
+npx supabase secrets set APP_URL=https://playnerys.com CORS_ALLOWED_ORIGINS=https://playnerys.com,https://www.playnerys.com,https://projectodyssee.pages.dev,http://localhost:4200 AI_PROVIDER=mock CRON_SECRET=UNE_VALEUR_ALEATOIRE
 npx supabase functions deploy start-game
 npx supabase functions deploy resolve-turn
+npx supabase functions deploy delete-account
 npx supabase functions deploy expire-turns
 ```
 

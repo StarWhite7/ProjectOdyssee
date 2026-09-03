@@ -2,7 +2,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
 
 Deno.serve(async (request) => {
-  const cors = createCorsHeaders(request.headers.get('Origin'), Deno.env.get('APP_URL'));
+  const cors = createCorsHeaders(
+    request.headers.get('Origin'),
+    Deno.env.get('APP_URL'),
+    Deno.env.get('CORS_ALLOWED_ORIGINS'),
+  );
   const preflight = handleCorsPreflight(request, cors);
   if (preflight) return preflight;
   const expected = Deno.env.get('CRON_SECRET');
