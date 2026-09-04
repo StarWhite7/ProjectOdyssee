@@ -41,6 +41,8 @@ export type LocalAdventure = GameSummary & {
     scene: string;
     location: string;
     resolution: string | null;
+    resolutionStatus?: string;
+    resolutionError?: string | null;
     intentions: Record<string, Array<{ id: string; label: string; description: string }>>;
     decisions: Array<{ playerId: string; characterId: string; actionText: string; source: string }>;
     createdAt: string;
@@ -232,6 +234,8 @@ export class GameService {
             scene_text,
             location,
             resolution_text,
+            resolution_status,
+            resolution_error,
             proposed_intentions,
             created_at,
             player_decisions (
@@ -292,6 +296,8 @@ export class GameService {
         scene: String(row.scene_text),
         location: String(row.location ?? ''),
         resolution: row.resolution_text ? String(row.resolution_text) : null,
+        resolutionStatus: String(row.resolution_status ?? 'open'),
+        resolutionError: row.resolution_error ? String(row.resolution_error) : null,
         intentions: (row.proposed_intentions ??
           {}) as LocalAdventure['turns'][number]['intentions'],
         decisions: ((row.player_decisions ?? []) as Array<Record<string, unknown>>).map(
@@ -407,7 +413,7 @@ export class GameService {
         action_text: actionText,
       });
       if (error) throw error;
-      await this.resolveTurn(turn.id);
+      await this.requestTurnResolution(turn.id);
       return;
     }
     const decisions = [
@@ -482,6 +488,15 @@ export class GameService {
     });
     if (error) throw error;
     return String((data as { status?: string } | null)?.status ?? 'requested');
+  }
+
+  private async requestTurnResolution(turnId: string): Promise<string> {
+    try {
+      return await this.resolveTurn(turnId);
+    } catch (error) {
+      console.error('Turn resolution request failed after decision submission.', error);
+      return 'request_failed';
+    }
   }
 
   createDemo(): string {

@@ -1,10 +1,12 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { AuthService } from './auth.service';
-import { GameService } from './game.service';
+import { GameService, type LocalAdventure } from './game.service';
 
 type ResolveTurnInternals = { resolveTurn(turnId: string): Promise<string> };
 type FakeClient = {
   functions: { invoke: ReturnType<typeof vi.fn> };
+  from: ReturnType<typeof vi.fn>;
   rpc: ReturnType<typeof vi.fn>;
 };
 
@@ -12,12 +14,14 @@ const resolveTurn = (service: GameService, turnId = 'turn-1') =>
   (service as unknown as ResolveTurnInternals).resolveTurn(turnId);
 
 describe('GameService turn resolution transport', () => {
+  const user = signal({ id: 'alice', email: 'alice@example.test', displayName: 'Alice' });
   let client: FakeClient | null;
   let service: GameService;
 
   beforeEach(() => {
     client = {
       functions: { invoke: vi.fn() },
+      from: vi.fn(),
       rpc: vi.fn(),
     };
     TestBed.configureTestingModule({
@@ -29,6 +33,7 @@ describe('GameService turn resolution transport', () => {
             get supabase() {
               return client;
             },
+            user,
           },
         },
       ],
@@ -90,6 +95,96 @@ describe('GameService turn resolution transport', () => {
       body: { gameId: 'game-42' },
     });
     expect(client!.rpc).not.toHaveBeenCalled();
+  });
+
+  it('keeps a saved decision successful when the resolution Edge Function fails', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const edgeError = new Error('Edge Function returned a non-2xx status code');
+    client!.from.mockReturnValue({ insert });
+    client!.functions.invoke.mockResolvedValue({ data: null, error: edgeError });
+    vi.spyOn(service, 'load').mockResolvedValue({
+      id: 'game-1',
+      title: 'Game',
+      inviteCode: 'TEST',
+      status: 'active',
+      playMode: 'asynchronous',
+      turnNumber: 1,
+      updatedAt: '',
+      ownerId: 'alice',
+      playerIds: ['alice', 'bob'],
+      timerSeconds: null,
+      world: {
+        genre: '',
+        customDescription: '',
+        tone: [],
+        realismLevel: 'grounded',
+        violenceLevel: 'none',
+        romanceEnabled: false,
+        characterDeathEnabled: false,
+        customRules: [],
+        forbiddenElements: [],
+      },
+      characters: [
+        {
+          id: 'character-1',
+          gameId: 'game-1',
+          ownerId: 'alice',
+          name: 'Ariane',
+          pronouns: null,
+          ageDescription: null,
+          appearance: '',
+          personalityTraits: [],
+          values: [],
+          fears: [],
+          strengths: [],
+          weaknesses: [],
+          backstory: '',
+          freeformDescription: '',
+          currentEmotionalState: [],
+          avatarUrl: null,
+          createdAt: '',
+          updatedAt: '',
+        },
+      ],
+      goals: [],
+      turns: [
+        {
+          id: 'turn-1',
+          number: 1,
+          scene: '',
+          location: '',
+          resolution: null,
+          intentions: {},
+          decisions: [],
+          createdAt: '',
+        },
+      ],
+      memories: [],
+    } satisfies LocalAdventure);
+
+    await expect(
+      service.submitDecision('game-1', 'Observer la salle', 'freeform', null),
+    ).resolves.toBeUndefined();
+
+    expect(client!.from).toHaveBeenCalledWith('player_decisions');
+    expect(insert).toHaveBeenCalledWith({
+      game_id: 'game-1',
+      turn_id: 'turn-1',
+      player_id: 'alice',
+      character_id: 'character-1',
+      source: 'freeform',
+      intention_id: null,
+      action_text: 'Observer la salle',
+    });
+    expect(client!.functions.invoke).toHaveBeenCalledWith('resolve-turn', {
+      body: { turnId: 'turn-1' },
+    });
+    expect(consoleError).toHaveBeenCalledWith(
+      'Turn resolution request failed after decision submission.',
+      edgeError,
+    );
+    consoleError.mockRestore();
   });
 
   it('deletes a Supabase game through the protected RPC and refreshes the list', async () => {

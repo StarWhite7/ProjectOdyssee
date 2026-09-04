@@ -412,7 +412,7 @@ export class GamePage implements OnInit, OnDestroy {
       this.game.set(await this.games.load(this.gameId));
       await this.syncSubmissionStatusForCurrentTurn();
       this.error.set('');
-      if (this.alreadySubmitted() && !this.resolutionRetrying) {
+      if (this.alreadySubmitted() && !this.resolutionRetrying && this.shouldRequestResolution()) {
         this.resolutionRetrying = true;
         try {
           const status = await this.games.resolveCurrentTurn(this.gameId);
@@ -420,6 +420,8 @@ export class GamePage implements OnInit, OnDestroy {
             this.game.set(await this.games.load(this.gameId));
             await this.syncSubmissionStatusForCurrentTurn();
           }
+        } catch (error) {
+          console.error('Turn resolution retry failed while refreshing the game page.', error);
         } finally {
           this.resolutionRetrying = false;
         }
@@ -448,6 +450,11 @@ export class GamePage implements OnInit, OnDestroy {
     await this.router.navigate(['/dashboard'], {
       state: dashboardNotificationState('adventure-deleted-by-other'),
     });
+  }
+  private shouldRequestResolution(): boolean {
+    const turn = this.turn();
+    if (!turn || turn.resolution) return false;
+    return turn.resolutionStatus === undefined || turn.resolutionStatus === 'open';
   }
   private async syncSubmissionStatusForCurrentTurn(): Promise<void> {
     const activeTurn = this.turn();

@@ -30,4 +30,19 @@ describe('start-game runtime source', () => {
     expect(source).toContain('game_world_settings');
     expect(source).toContain('locked_at');
   });
+
+  it('checks parallel Supabase reads before generating the opening turn', () => {
+    expect(source).toContain('worldError');
+    expect(source).toContain('settingsResult.error');
+    expect(source).toContain('goalsError');
+  });
+
+  it('returns classified safe failures instead of a generic opaque 500', () => {
+    expect(source).toContain('classifyStartGameError');
+    expect(source).toContain('start_game_failed');
+    expect(source).toContain('stage');
+    expect(source).toContain('ai_temporarily_unavailable');
+    expect(source).toContain('ai_generation_failed');
+    expect(source).toContain('unexpected_start_game_error');
+  });
 });

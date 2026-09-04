@@ -34,7 +34,7 @@ const character = (id: string, ownerId: string) => ({
   updatedAt: '',
 });
 
-const adventure = (turnId = 'turn-1'): LocalAdventure => ({
+const adventure = (turnId = 'turn-1', resolutionStatus = 'open'): LocalAdventure => ({
   id: 'game-1',
   title: 'Test',
   inviteCode: 'TEST',
@@ -65,6 +65,8 @@ const adventure = (turnId = 'turn-1'): LocalAdventure => ({
       scene: '',
       location: '',
       resolution: null,
+      resolutionStatus,
+      resolutionError: null,
       intentions: {},
       decisions: [],
       createdAt: new Date().toISOString(),
@@ -78,6 +80,7 @@ describe('GamePage partner submission status', () => {
   let currentGame: LocalAdventure;
   let statuses: TurnSubmissionStatus[];
   let getStatus: ReturnType<typeof vi.fn>;
+  let resolveCurrentTurn: ReturnType<typeof vi.fn>;
   let page: GamePage;
 
   beforeEach(() => {
@@ -88,6 +91,7 @@ describe('GamePage partner submission status', () => {
       { playerId: 'bob', submitted: false },
     ];
     getStatus = vi.fn(async () => statuses);
+    resolveCurrentTurn = vi.fn();
     TestBed.configureTestingModule({
       imports: [GamePage],
       providers: [
@@ -100,7 +104,7 @@ describe('GamePage partner submission status', () => {
             load: vi.fn(async () => currentGame),
             getTurnSubmissionStatus: getStatus,
             isGameMissingError: vi.fn(() => false),
-            resolveCurrentTurn: vi.fn(),
+            resolveCurrentTurn,
           },
         },
       ],
@@ -181,6 +185,40 @@ describe('GamePage partner submission status', () => {
 
     await vi.advanceTimersByTimeAsync(9_000);
     expect(getStatus).toHaveBeenCalledTimes(callsBeforeDestroy);
+  });
+
+  it('does not show a page error when a background resolution retry fails', async () => {
+    statuses = [
+      { playerId: 'alice', submitted: true },
+      { playerId: 'bob', submitted: true },
+    ];
+    resolveCurrentTurn.mockRejectedValueOnce(
+      new Error('Edge Function returned a non-2xx status code'),
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await page.reload(false);
+
+    expect(resolveCurrentTurn).toHaveBeenCalledWith('game-1');
+    expect(page.error()).toBe('');
+    expect(consoleError).toHaveBeenCalledWith(
+      'Turn resolution retry failed while refreshing the game page.',
+      expect.any(Error),
+    );
+    consoleError.mockRestore();
+  });
+
+  it('does not automatically retry resolution for a failed turn', async () => {
+    currentGame = adventure('turn-1', 'failed');
+    statuses = [
+      { playerId: 'alice', submitted: true },
+      { playerId: 'bob', submitted: true },
+    ];
+
+    await page.reload(false);
+
+    expect(resolveCurrentTurn).not.toHaveBeenCalled();
+    expect(page.error()).toBe('');
   });
 
   it('navigates to the clean dashboard URL with a deletion notification state', async () => {
